@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"flag"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -14,16 +16,30 @@ import (
 	"github.com/xiangxn/polyman/internal/order"
 	"github.com/xiangxn/polyman/internal/position"
 	"github.com/xiangxn/polyman/internal/strategies"
+	"github.com/xiangxn/polyman/internal/version"
 
 	pm "github.com/xiangxn/go-polymarket-sdk/polymarket"
 )
 
 func main() {
+	showVersion := flag.Bool("version", false, "print version and exit")
+	flag.Parse()
+
+	if *showVersion {
+		fmt.Printf(
+			"polyman %s (%s) %s\n",
+			version.Version,
+			version.Commit,
+			version.Date,
+		)
+		os.Exit(0)
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err)
 	}
-	log.Println("🚀 polyman system starting...")
+	log.Printf("🚀 [%s] polyman system starting...", version.Version)
 	pmClient := pm.NewClient(cfg.OwnerKey, &cfg.PmSDK)
 	ctx, cancel := context.WithCancel(context.Background())
 
