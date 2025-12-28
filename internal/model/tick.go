@@ -6,5 +6,4 @@ type Tick struct {
 	Price     float64
 	Volume    float64
 	Timestamp int64
-	Extra     map[string]any
 }

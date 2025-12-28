@@ -2,8 +2,9 @@ package marketdata
 
 import (
 	"context"
-	"polyman/internal/model"
 	"time"
+
+	"github.com/xiangxn/polyman/internal/model"
 )
 
 type MockMarketData struct {

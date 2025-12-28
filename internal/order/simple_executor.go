@@ -3,7 +3,8 @@ package order
 import (
 	"context"
 	"log"
-	"polyman/internal/model"
+
+	"github.com/xiangxn/polyman/internal/model"
 )
 
 type SimpleExecutor struct {

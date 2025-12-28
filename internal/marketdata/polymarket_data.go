@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"polyman/internal/model"
 	"sync"
+	"sync/atomic"
 	"time"
+
+	"github.com/xiangxn/polyman/internal/model"
 
 	"github.com/tidwall/gjson"
 	"github.com/xiangxn/go-polymarket-sdk/orders"
@@ -15,46 +17,57 @@ import (
 	"github.com/xiangxn/go-polymarket-sdk/utils"
 )
 
-type PriceManager struct {
+type PolymarketData struct {
 	ws               *utils.WebSocketClient
 	tickCh           chan model.Tick
+	tokensPrice      map[string]*PM.PriceData
 	mu               sync.RWMutex
 	clobMarketWSSURL string
-	isConnecting     bool
+	isConnecting     atomic.Bool
 	subsTokens       []string
+	muSubsTokens     sync.RWMutex
+	pmClient         *PM.PolymarketClient
 }
 
-func NewPriceManager(wsBaseUrl string) *PriceManager {
-	return &PriceManager{
+func NewPolymarketData(wsBaseUrl string, client *PM.PolymarketClient) *PolymarketData {
+	return &PolymarketData{
 		tickCh:           make(chan model.Tick, 1024), // channel buffer
+		tokensPrice:      make(map[string]*PM.PriceData),
 		clobMarketWSSURL: fmt.Sprintf("%s/ws/market", wsBaseUrl),
+		pmClient:         client,
 	}
+}
+
+func (pm *PolymarketData) GetClient() *PM.PolymarketClient {
+	return pm.pmClient
 }
 
 // Run 启动 WebSocket 监听
-func (pm *PriceManager) Run(ctx context.Context) error {
-	pm.mu.Lock()
-	if pm.isConnecting || pm.ws != nil {
-		pm.mu.Unlock()
+func (pm *PolymarketData) Run(ctx context.Context) error {
+	if pm.isConnecting.Load() || pm.ws != nil {
 		return nil
 	}
-	pm.isConnecting = true
-	pm.mu.Unlock()
+
+	pm.isConnecting.Store(true)
 
 	pm.ws = utils.NewWebSocketClient(pm.clobMarketWSSURL, 10*time.Second)
 
 	pm.ws.On("open", func(_ any) {
-		log.Println("[PriceManager] WebSocket Connected")
-		pm.isConnecting = false
+		log.Println("[PolymarketData] WebSocket Connected")
+		pm.isConnecting.Store(false)
 		pm.subscribeToMarket()
 	})
 	pm.ws.On("error", func(e any) {
-		log.Println("[PriceManager] WebSocket Error:", e)
-		pm.isConnecting = false
+		log.Println("[PolymarketData] WebSocket Error:", e)
+		pm.isConnecting.Store(false)
 	})
 	pm.ws.On("close", func(_ any) {
-		log.Println("[PriceManager] WebSocket Closed")
-		pm.isConnecting = false
+		log.Println("[PolymarketData] WebSocket Closed")
+		pm.isConnecting.Store(false)
+	})
+	pm.ws.On("reconnect", func(_ any) {
+		// 清空数据，防止旧数据异常
+		pm.tokensPrice = make(map[string]*PM.PriceData)
 	})
 
 	pm.ws.OnMessage(func(msg []byte) {
@@ -73,15 +86,15 @@ func (pm *PriceManager) Run(ctx context.Context) error {
 }
 
 // Subscribe 返回 channel
-func (pm *PriceManager) Subscribe() <-chan model.Tick {
+func (pm *PolymarketData) Subscribe() <-chan model.Tick {
 	return pm.tickCh
 }
 
 // handleMessage 解析消息并发送 Tick
-func (pm *PriceManager) handleMessage(msg string) {
+func (pm *PolymarketData) handleMessage(msg string) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("[PriceManager] handleMessage panic: %v", r)
+			log.Printf("[PolymarketData] handleMessage panic: %v", r)
 		}
 	}()
 
@@ -111,6 +124,13 @@ func (pm *PriceManager) handleMessage(msg string) {
 		bestAsk.Price = lastAsk.Get("price").Float()
 		bestAsk.Size = lastAsk.Get("size").Float()
 	}
+	pm.updatePrice(&PM.PriceData{
+		TokenID:   assetID,
+		BestAsk:   &bestAsk,
+		BestBid:   &bestBid,
+		Market:    market,
+		Timestamp: timestamp,
+	})
 
 	tick := model.Tick{
 		Market:    market,
@@ -118,10 +138,6 @@ func (pm *PriceManager) handleMessage(msg string) {
 		Price:     bestBid.Price, // 可以根据策略选择 BestBid / BestAsk / Mid
 		Volume:    bestBid.Size,  // 可选填
 		Timestamp: timestamp,
-		Extra: map[string]any{
-			"best_bid": bestBid,
-			"best_ask": bestAsk,
-		},
 	}
 
 	// 异步发送到 channel
@@ -129,30 +145,57 @@ func (pm *PriceManager) handleMessage(msg string) {
 	case pm.tickCh <- tick:
 	default:
 		// channel 满了可以丢弃或打 log
-		log.Println("[PriceManager] tick channel full, dropping tick")
+		log.Println("[PolymarketData] tick channel full, dropping tick")
 	}
 }
 
 // Disconnect 断开 WS
-func (pm *PriceManager) Disconnect() {
-	pm.mu.Lock()
-	defer pm.mu.Unlock()
+func (pm *PolymarketData) Disconnect() {
+	pm.muSubsTokens.Lock()
+	defer pm.muSubsTokens.Unlock()
+
 	if pm.ws != nil {
 		pm.ws.Close()
 		pm.ws = nil
 	}
-	pm.isConnecting = false
+	pm.isConnecting.Store(false)
 	pm.subsTokens = nil
 }
 
-// SubscribeToMarket 订阅市场数据 (导出的方法)
-func (pm *PriceManager) SubscribeToMarket(tokens ...string) {
+func (pm *PolymarketData) Reset() {
+	pm.muSubsTokens.Lock()
+	defer pm.muSubsTokens.Unlock()
+
+	pm.subsTokens = nil
+	pm.tokensPrice = make(map[string]*PM.PriceData)
+	pm.ws.Reset()
+}
+
+// SubscribeTokens 订阅市场数据 (导出的方法)
+func (pm *PolymarketData) SubscribeTokens(tokens ...string) {
 	pm.subscribeToMarket(tokens...)
 }
 
-func (pm *PriceManager) subscribeToMarket(tokens ...string) {
-	pm.mu.Lock()
-	defer pm.mu.Unlock()
+func (pm *PolymarketData) UnsubscribeTokens(tokens ...string) {
+	pm.muSubsTokens.Lock()
+	defer pm.muSubsTokens.Unlock()
+
+	if len(tokens) > 0 {
+		for _, token := range tokens {
+			// 从订阅列表中移除
+			for i, t := range pm.subsTokens {
+				if t == token {
+					pm.subsTokens = append(pm.subsTokens[:i], pm.subsTokens[i+1:]...)
+					break
+				}
+			}
+		}
+	}
+}
+
+func (pm *PolymarketData) subscribeToMarket(tokens ...string) {
+	pm.muSubsTokens.Lock()
+	defer pm.muSubsTokens.Unlock()
 
 	if len(tokens) > 0 {
 		pm.subsTokens = append(pm.subsTokens, tokens...)
@@ -167,7 +210,7 @@ func (pm *PriceManager) subscribeToMarket(tokens ...string) {
 		}
 	}
 
-	if len(pm.subsTokens) == 0 || pm.ws == nil {
+	if len(pm.subsTokens) == 0 || pm.ws == nil || !pm.ws.IsAlive() {
 		return
 	}
 
@@ -184,4 +227,20 @@ func (pm *PriceManager) subscribeToMarket(tokens ...string) {
 	}
 
 	log.Printf("📡 已订阅市场: %v", pm.subsTokens)
+}
+
+func (pm *PolymarketData) updatePrice(priceData *PM.PriceData) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+	pm.tokensPrice[priceData.TokenID] = priceData
+}
+
+func (pm *PolymarketData) GetTokenPrice(tokenID string) (PM.PriceData, error) {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
+	if priceData, ok := pm.tokensPrice[tokenID]; ok {
+		return *priceData, nil
+	}
+	return PM.PriceData{}, fmt.Errorf("token price not found for %s", tokenID)
 }

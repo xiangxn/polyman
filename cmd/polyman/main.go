@@ -5,29 +5,30 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"polyman/internal/common"
-	"polyman/internal/config"
-	"polyman/internal/engine"
-	"polyman/internal/marketdata"
-	"polyman/internal/order"
-	"polyman/internal/position"
-	"polyman/internal/strategies"
 	"syscall"
+
+	"github.com/xiangxn/polyman/internal/common"
+	"github.com/xiangxn/polyman/internal/config"
+	"github.com/xiangxn/polyman/internal/engine"
+	"github.com/xiangxn/polyman/internal/marketdata"
+	"github.com/xiangxn/polyman/internal/order"
+	"github.com/xiangxn/polyman/internal/position"
+	"github.com/xiangxn/polyman/internal/strategies"
 
 	pm "github.com/xiangxn/go-polymarket-sdk/polymarket"
 )
 
 func main() {
-	log.Println("🚀 polyman system starting...")
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err)
 	}
+	log.Println("🚀 polyman system starting...")
 	pmClient := pm.NewClient(cfg.OwnerKey, &cfg.PmSDK)
 	ctx, cancel := context.WithCancel(context.Background())
 
-	md := marketdata.NewPriceManager(cfg.PmSDK.Polymarket.ClobWSBaseURL)
-	strategy := &strategies.PolymanStrategy{}
+	md := marketdata.NewPolymarketData(cfg.PmSDK.Polymarket.ClobWSBaseURL, pmClient)
+	strategy := &strategies.PolymanStrategy{MarketSlug: cfg.MarketSlug}
 	orderer := order.NewConcurrentExecutor(pmClient, cfg.OrderEngine)
 	pos := position.NewManager()
 

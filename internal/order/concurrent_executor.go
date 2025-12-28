@@ -3,11 +3,11 @@ package order
 import (
 	"context"
 	"log"
-	"polyman/internal/config"
-	"polyman/internal/model"
 	"sync"
 
-	pmModel "github.com/polymarket/go-order-utils/pkg/model"
+	"github.com/xiangxn/polyman/internal/config"
+	"github.com/xiangxn/polyman/internal/model"
+
 	"github.com/xiangxn/go-polymarket-sdk/orders"
 	pm "github.com/xiangxn/go-polymarket-sdk/polymarket"
 )
@@ -79,37 +79,37 @@ func (e *ConcurrentExecutor) handleOrder(workerID int, intent model.Intent, key 
 	// ⚠️ 如果这里有共享状态，比如 position，需要加锁
 	log.Printf("[Executor] worker-%d processing order: %+v", workerID, intent)
 
-	// 下单逻辑
-	if e.pmClient != nil {
-		// 创建订单
-		side := pmModel.BUY
-		if intent.Side == orders.SELL {
-			side = pmModel.SELL
-		}
-		order, err := e.pmClient.CreateOrder(&orders.UserOrder{
-			TokenID: intent.Token,
-			Price:   intent.Price,
-			Size:    intent.Size,
-			Side:    side,
-		}, orders.CreateOrderOptions{
-			TickSize:      orders.TickSize001,
-			SignatureType: pmModel.POLY_GNOSIS_SAFE,
-		})
-		if err != nil {
-			log.Printf("[Worker %d] 下单失败: %v", workerID, err)
-			return
-		}
-		// 发送订单
-		result, err := e.pmClient.PostOrder(order, orders.GTC, false)
-		if err != nil {
-			log.Printf("[Worker %d] 下单失败: %v", workerID, err)
-			return
-		}
-		orderId := result.Get("orderId").String()
-		log.Printf("[Worker %d] 下单成功: %v", workerID, orderId)
-	} else {
-		log.Printf("[Worker %d] 下单失败: %v", workerID, "pmClient is nil")
-	}
+	// // 下单逻辑
+	// if e.pmClient != nil {
+	// 	// 创建订单
+	// 	side := pmModel.BUY
+	// 	if intent.Side == orders.SELL {
+	// 		side = pmModel.SELL
+	// 	}
+	// 	order, err := e.pmClient.CreateOrder(&orders.UserOrder{
+	// 		TokenID: intent.Token,
+	// 		Price:   intent.Price,
+	// 		Size:    intent.Size,
+	// 		Side:    side,
+	// 	}, orders.CreateOrderOptions{
+	// 		TickSize:      orders.TickSize001,
+	// 		SignatureType: pmModel.POLY_GNOSIS_SAFE,
+	// 	})
+	// 	if err != nil {
+	// 		log.Printf("[Worker %d] 下单失败: %v", workerID, err)
+	// 		return
+	// 	}
+	// 	// 发送订单
+	// 	result, err := e.pmClient.PostOrder(order, intent.OrderType, false)
+	// 	if err != nil {
+	// 		log.Printf("[Worker %d] 下单失败: %v", workerID, err)
+	// 		return
+	// 	}
+	// 	orderId := result.Get("orderId").String()
+	// 	log.Printf("[Worker %d] 下单成功: %v", workerID, orderId)
+	// } else {
+	// 	log.Printf("[Worker %d] 下单失败: %v", workerID, "pmClient is nil")
+	// }
 
 	// 下单完成后释放缓存
 	e.cache.Delete(key)

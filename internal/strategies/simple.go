@@ -1,7 +1,7 @@
 package strategies
 
 import (
-	"polyman/internal/model"
+	"github.com/xiangxn/polyman/internal/model"
 
 	"github.com/xiangxn/go-polymarket-sdk/orders"
 )

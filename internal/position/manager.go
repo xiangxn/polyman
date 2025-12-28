@@ -1,8 +1,9 @@
 package position
 
 import (
-	"polyman/internal/model"
 	"sync"
+
+	"github.com/xiangxn/polyman/internal/model"
 )
 
 type Manager struct {

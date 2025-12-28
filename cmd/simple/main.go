@@ -5,13 +5,14 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"polyman/internal/common"
-	"polyman/internal/engine"
-	"polyman/internal/marketdata"
-	"polyman/internal/order"
-	"polyman/internal/position"
-	"polyman/internal/strategies"
 	"syscall"
+
+	"github.com/xiangxn/polyman/internal/common"
+	"github.com/xiangxn/polyman/internal/engine"
+	"github.com/xiangxn/polyman/internal/marketdata"
+	"github.com/xiangxn/polyman/internal/order"
+	"github.com/xiangxn/polyman/internal/position"
+	"github.com/xiangxn/polyman/internal/strategies"
 )
 
 func main() {

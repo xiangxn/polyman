@@ -3,11 +3,12 @@ package engine
 import (
 	"context"
 	"fmt"
-	"polyman/internal/marketdata"
-	"polyman/internal/model"
-	"polyman/internal/order"
-	"polyman/internal/position"
-	"polyman/internal/strategies"
+
+	"github.com/xiangxn/polyman/internal/marketdata"
+	"github.com/xiangxn/polyman/internal/model"
+	"github.com/xiangxn/polyman/internal/order"
+	"github.com/xiangxn/polyman/internal/position"
+	"github.com/xiangxn/polyman/internal/strategies"
 )
 
 type Engine struct {
@@ -31,8 +32,15 @@ func New(
 func (e *Engine) Run(ctx context.Context) error {
 	// 1️⃣ 初始化策略
 	if initer, ok := e.strategy.(strategies.InitnableStrategy); ok {
-		if err := initer.Init(ctx); err != nil {
-			return err
+		ctrl, ok := e.md.(marketdata.MarketDataController)
+		if !ok {
+			if err := initer.Init(ctx, nil); err != nil {
+				return err
+			}
+		} else {
+			if err := initer.Init(ctx, ctrl); err != nil {
+				return err
+			}
 		}
 	}
 

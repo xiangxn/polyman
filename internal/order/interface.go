@@ -2,7 +2,8 @@ package order
 
 import (
 	"context"
-	"polyman/internal/model"
+
+	"github.com/xiangxn/polyman/internal/model"
 )
 
 type Executor interface {
