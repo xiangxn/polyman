@@ -1,10 +1,12 @@
 package marketdata
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -44,7 +46,7 @@ func (pm *PolymarketData) GetClient() *PM.PolymarketClient {
 
 // Run 启动 WebSocket 监听
 func (pm *PolymarketData) Run(ctx context.Context) error {
-	if pm.isConnecting.Load() || pm.ws != nil {
+	if pm.isConnecting.Load() || (pm.ws != nil && pm.ws.IsAlive()) {
 		return nil
 	}
 
@@ -67,7 +69,9 @@ func (pm *PolymarketData) Run(ctx context.Context) error {
 	})
 	pm.ws.On("reconnect", func(_ any) {
 		// 清空数据，防止旧数据异常
+		pm.mu.Lock()
 		pm.tokensPrice = make(map[string]*PM.PriceData)
+		pm.mu.Unlock()
 	})
 
 	pm.ws.OnMessage(func(msg []byte) {
@@ -81,7 +85,7 @@ func (pm *PolymarketData) Run(ctx context.Context) error {
 	// 等待 ctx 结束
 	<-ctx.Done()
 	pm.Disconnect()
-	close(pm.tickCh)
+	// close(pm.tickCh)
 	return ctx.Err()
 }
 
@@ -115,12 +119,14 @@ func (pm *PolymarketData) handleMessage(msg string) {
 
 	var bestBid, bestAsk orders.Book
 	if len(Bids) > 0 {
-		lastBid := Bids[len(Bids)-1]
+		// lastBid := Bids[len(Bids)-1]
+		lastBid := slices.MaxFunc(Bids, func(a, b gjson.Result) int { return cmp.Compare(a.Get("price").Float(), b.Get("price").Float()) })
 		bestBid.Price = lastBid.Get("price").Float()
 		bestBid.Size = lastBid.Get("size").Float()
 	}
 	if len(Asks) > 0 {
-		lastAsk := Asks[len(Asks)-1]
+		// lastAsk := Asks[len(Asks)-1]
+		lastAsk := slices.MinFunc(Asks, func(a, b gjson.Result) int { return cmp.Compare(a.Get("price").Float(), b.Get("price").Float()) })
 		bestAsk.Price = lastAsk.Get("price").Float()
 		bestAsk.Size = lastAsk.Get("size").Float()
 	}
@@ -168,7 +174,10 @@ func (pm *PolymarketData) Reset() {
 
 	pm.subsTokens = nil
 	pm.tokensPrice = make(map[string]*PM.PriceData)
-	pm.ws.Reset()
+
+	if pm.ws != nil {
+		pm.ws.Reset()
+	}
 }
 
 // SubscribeTokens 订阅市场数据 (导出的方法)

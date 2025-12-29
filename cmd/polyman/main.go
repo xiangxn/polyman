@@ -12,8 +12,8 @@ import (
 	"github.com/xiangxn/polyman/internal/common"
 	"github.com/xiangxn/polyman/internal/config"
 	"github.com/xiangxn/polyman/internal/engine"
+	"github.com/xiangxn/polyman/internal/executor"
 	"github.com/xiangxn/polyman/internal/marketdata"
-	"github.com/xiangxn/polyman/internal/order"
 	"github.com/xiangxn/polyman/internal/position"
 	"github.com/xiangxn/polyman/internal/strategies"
 	"github.com/xiangxn/polyman/internal/version"
@@ -45,7 +45,7 @@ func main() {
 
 	md := marketdata.NewPolymarketData(cfg.PmSDK.Polymarket.ClobWSBaseURL, pmClient)
 	strategy := &strategies.PolymanStrategy{MarketSlug: cfg.MarketSlug}
-	orderer := order.NewConcurrentExecutor(pmClient, cfg.OrderEngine)
+	orderer := executor.NewLiveExecutor(pmClient, nil, cfg.OrderEngine)
 	pos := position.NewManager()
 
 	eng := engine.New(md, strategy, orderer, pos)

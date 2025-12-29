@@ -37,9 +37,12 @@ func (s *PolymanStrategy) OnTick(t model.Tick) []model.Intent {
 		return nil
 	}
 
-	if token0.BestAsk.Price+token1.BestAsk.Price < 1.0 {
+	if token0.BestAsk.Price+token1.BestAsk.Price < 1.0 { // 价格和小于1是基本条件
 		now := time.Now().UnixMilli()
 		log.Printf("Book Data === BestAsk: %.2f/%.2f=%.2f, %.2f/%.2f, delay: %d, diff: %d", token0.BestAsk.Price, token1.BestAsk.Price, token0.BestAsk.Price+token1.BestAsk.Price, token0.BestAsk.Size, token1.BestAsk.Size, now-t.Timestamp, token0.Timestamp-token1.Timestamp)
+		if now-t.Timestamp < 500 { // 小于500ms的才尝试下单
+			// TODO: 完成策略
+		}
 	}
 
 	return nil

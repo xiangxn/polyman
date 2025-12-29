@@ -1,4 +1,4 @@
-package order
+package executor
 
 import (
 	"context"
@@ -9,4 +9,12 @@ import (
 type Executor interface {
 	Submit(ctx context.Context, intent model.Intent) error
 	Run(ctx context.Context) error
+}
+
+type ExecutionListener interface {
+	OnEvent(evt ExecutionEvent)
+}
+
+type EventSource interface {
+	SetListener(listener ExecutionListener)
 }

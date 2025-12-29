@@ -9,8 +9,8 @@ import (
 
 	"github.com/xiangxn/polyman/internal/common"
 	"github.com/xiangxn/polyman/internal/engine"
+	"github.com/xiangxn/polyman/internal/executor"
 	"github.com/xiangxn/polyman/internal/marketdata"
-	"github.com/xiangxn/polyman/internal/order"
 	"github.com/xiangxn/polyman/internal/position"
 	"github.com/xiangxn/polyman/internal/strategies"
 )
@@ -21,7 +21,7 @@ func main() {
 
 	md := marketdata.NewMockMarketData()
 	strat := &strategies.SimpleStrategy{}
-	orderer := order.NewSimpleExecutor()
+	orderer := executor.NewSimpleExecutor()
 	pos := position.NewManager()
 
 	eng := engine.New(md, strat, orderer, pos)

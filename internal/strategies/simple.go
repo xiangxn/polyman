@@ -14,7 +14,7 @@ func (s *SimpleStrategy) OnTick(t model.Tick) []model.Intent {
 			{
 				Market:    t.Market,
 				Token:     t.Token,
-				Side:      orders.BUY,
+				Side:      model.SideLong,
 				OrderType: orders.GTC,
 				Price:     t.Price,
 				Size:      1,
