@@ -64,7 +64,7 @@ type PositionView struct {
 
 func (p *Position) ApplyFill(fill Fill) error {
 	if fill.Size <= 0 {
-		return fmt.Errorf("invalid fill size: %d", fill.Size)
+		return fmt.Errorf("invalid fill size: %f", fill.Size)
 	}
 	if fill.Price <= 0 {
 		return fmt.Errorf("invalid fill price: %f", fill.Price)
