@@ -1,6 +1,4 @@
-package executor
-
-import "github.com/xiangxn/polyman/internal/model"
+package model
 
 type EventType int
 
@@ -14,7 +12,7 @@ const (
 type ExecutionEvent struct {
 	Type EventType
 
-	Fill   *model.Fill
-	Intent *model.Intent
+	Fill   *Fill
+	Intent *Intent
 	Err    error
 }

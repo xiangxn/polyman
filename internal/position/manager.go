@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/xiangxn/polyman/internal/executor"
 	"github.com/xiangxn/polyman/internal/model"
 )
 
@@ -68,24 +67,24 @@ func (m *PositionManager) GetPositionWithPrice(
    Event Entry (ONLY public writer)
    ========================= */
 
-func (pm *PositionManager) OnEvent(evt executor.ExecutionEvent) {
+func (pm *PositionManager) OnEvent(evt model.ExecutionEvent) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
 	switch evt.Type {
 
-	case executor.EventFill:
+	case model.EventFill:
 		if evt.Fill != nil {
 			pm.onFillLocked(*evt.Fill)
 		}
 
-	case executor.EventReject:
+	case model.EventReject:
 		pm.unfreezeLocked(evt.Intent.OrderID, evt.Err)
 
-	case executor.EventCancel:
+	case model.EventCancel:
 		pm.unfreezeLocked(evt.Intent.OrderID, nil)
 
-	case executor.EventExpire:
+	case model.EventExpire:
 		pm.unfreezeLocked(evt.Intent.OrderID, errors.New("order expired"))
 	}
 }

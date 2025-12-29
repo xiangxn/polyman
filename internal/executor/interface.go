@@ -12,7 +12,7 @@ type Executor interface {
 }
 
 type ExecutionListener interface {
-	OnEvent(evt ExecutionEvent)
+	OnEvent(evt model.ExecutionEvent)
 }
 
 type EventSource interface {

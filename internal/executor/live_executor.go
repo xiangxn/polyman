@@ -37,8 +37,8 @@ func (e *LiveExecutor) OnOrderFilled(fill model.Fill) {
 
 	// 2️⃣ 发出统一事件
 	if e.listener != nil {
-		e.listener.OnEvent(ExecutionEvent{
-			Type: EventFill,
+		e.listener.OnEvent(model.ExecutionEvent{
+			Type: model.EventFill,
 			Fill: &fill,
 		})
 	}
@@ -50,8 +50,8 @@ func (e *LiveExecutor) OnOrderRejected(intent model.Intent, err error) {
 	e.submitter.cache.Delete(key)
 
 	if e.listener != nil {
-		e.listener.OnEvent(ExecutionEvent{
-			Type:   EventReject,
+		e.listener.OnEvent(model.ExecutionEvent{
+			Type:   model.EventReject,
 			Intent: &intent,
 			Err:    err,
 		})
