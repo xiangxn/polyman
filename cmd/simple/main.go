@@ -22,7 +22,7 @@ func main() {
 	md := marketdata.NewMockMarketData()
 	strat := &strategies.SimpleStrategy{}
 	orderer := executor.NewSimpleExecutor()
-	pos := position.NewManager()
+	pos := position.NewManager(1000)
 
 	eng := engine.New(md, strat, orderer, pos)
 

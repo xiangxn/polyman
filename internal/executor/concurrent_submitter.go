@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"errors"
 	"log"
 	"sync"
 
@@ -17,7 +16,6 @@ type ConcurrentSubmitter struct {
 	ch      chan model.Intent
 	workers int
 	wg      sync.WaitGroup
-	cache   sync.Map
 
 	pmClient *pm.PolymarketClient
 
@@ -36,6 +34,14 @@ func NewConcurrentSubmitter(pmClient *pm.PolymarketClient, config config.OrderEn
 		workers:  config.WorkerNum,
 		pmClient: pmClient,
 	}
+}
+
+func (e *ConcurrentSubmitter) SetOnSubmit(onSubmit func(intent model.Intent, orderID string)) {
+	e.onSubmit = onSubmit
+}
+
+func (e *ConcurrentSubmitter) SetOnReject(onReject func(intent model.Intent, err error)) {
+	e.onReject = onReject
 }
 
 // Submit 投递订单
@@ -61,12 +67,6 @@ func (e *ConcurrentSubmitter) Run(ctx context.Context) error {
 					log.Printf("[Executor] worker-%d 停止", id)
 					return
 				case in := <-e.ch:
-					key := OrderKey{Token: in.Token, Side: in.Side}
-					// 原子去重
-					if _, exists := e.cache.LoadOrStore(key, struct{}{}); exists {
-						log.Printf("[Executor] worker-%d 重复订单跳过: %v", id, key)
-						continue
-					}
 					e.handleOrder(id, in)
 				}
 			}
@@ -118,28 +118,21 @@ func (s *ConcurrentSubmitter) handleOrder(workerID int, intent model.Intent) {
 	// 下单完成后释放缓存
 	// e.cache.Delete(key)
 
-	key := OrderKey{Token: intent.Token, Side: intent.Side}
-
-	if _, exists := s.cache.LoadOrStore(key, struct{}{}); exists {
-		s.onReject(intent, errors.New("duplicate order"))
-		return
-	}
-
 	// 下单逻辑
 	if s.pmClient != nil {
 		// 创建订单
 		side := pmModel.BUY
-		if intent.Side == model.SideShort {
+		if intent.Side == model.SideSell {
 			side = pmModel.SELL
 		}
+		signatureType := pmModel.POLY_GNOSIS_SAFE
 		order, err := s.pmClient.CreateOrder(&orders.UserOrder{
 			TokenID: intent.Token,
 			Price:   intent.Price,
 			Size:    intent.Size,
 			Side:    side,
 		}, orders.CreateOrderOptions{
-			TickSize:      orders.TickSize001,
-			SignatureType: pmModel.POLY_GNOSIS_SAFE,
+			SignatureType: &signatureType,
 		})
 		if err != nil {
 			log.Printf("[Worker %d] 创建订单数据失败: %v", workerID, err)
@@ -148,13 +141,15 @@ func (s *ConcurrentSubmitter) handleOrder(workerID int, intent model.Intent) {
 		// 发送订单
 		result, err := s.pmClient.PostOrder(order, intent.OrderType, false)
 		if err != nil {
-			s.cache.Delete(key)
-			s.onReject(intent, err)
+			if s.onReject != nil {
+				s.onReject(intent, err)
+			}
 			log.Printf("[Worker %d] 下单失败: %v", workerID, err)
 			return
 		}
-		orderID := result.Get("orderId").String()
-
-		s.onSubmit(intent, orderID)
+		if s.onSubmit != nil {
+			orderID := result.Get("orderId").String()
+			s.onSubmit(intent, orderID)
+		}
 	}
 }

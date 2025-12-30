@@ -9,5 +9,4 @@ type Intent struct {
 	OrderType orders.OrderType
 	Price     float64
 	Size      float64
-	OrderID   string
 }

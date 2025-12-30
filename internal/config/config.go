@@ -74,6 +74,12 @@ func Load() (*Config, error) {
 		enc = pmutils.NewEncryptor(string(bytePassword))
 	}
 
+	if v.IsSet("polymarket.funder_address") {
+		var funderAddress string
+		_ = v.UnmarshalKey("polymarket.funder_address", &funderAddress)
+		cfg.PmSDK.Polymarket.FunderAddress = &funderAddress
+	}
+
 	if v.IsSet("polymarket.clob_creds") {
 		var creds headers.ApiKeyCreds
 		_ = v.UnmarshalKey("polymarket.clob_creds", &creds)

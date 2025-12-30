@@ -9,14 +9,16 @@ import (
 )
 
 type LiveExecutor struct {
-	submitter *ConcurrentSubmitter
-	listener  ExecutionListener
+	submitter    *ConcurrentSubmitter
+	listener     ExecutionListener
+	tradeMonitor *TradeMonitor
 }
 
-func NewLiveExecutor(pmClient *pm.PolymarketClient, listener ExecutionListener, config config.OrderEngineConfig) *LiveExecutor {
+func NewLiveExecutor(pmClient *pm.PolymarketClient, listener ExecutionListener, config config.OrderEngineConfig, pmConfig pm.PolymarketConfig) *LiveExecutor {
 	return &LiveExecutor{
-		submitter: NewConcurrentSubmitter(pmClient, config),
-		listener:  listener,
+		submitter:    NewConcurrentSubmitter(pmClient, config),
+		tradeMonitor: NewTradeMonitor(pmConfig.ClobWSBaseURL, *pmConfig.FunderAddress, pmConfig.CLOBCreds),
+		listener:     listener,
 	}
 }
 
@@ -25,17 +27,24 @@ func (e *LiveExecutor) Submit(ctx context.Context, intent model.Intent) error {
 }
 
 func (e *LiveExecutor) Run(ctx context.Context) error {
-	// TODO: 实现监听订单
+	e.submitter.SetOnReject(e.OnOrderRejected)
+	// 监听订单
+	fillCh := e.tradeMonitor.Subscribe()
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case fill := <-fillCh:
+				e.OnOrderFilled(fill)
+			}
+		}
+	}()
+	// 下单
 	return e.submitter.Run(ctx)
 }
 
 func (e *LiveExecutor) OnOrderFilled(fill model.Fill) {
-	key := OrderKey{Token: fill.TokenID, Side: fill.Side}
-
-	// 1️⃣ 释放去重 cache（事实层）
-	e.submitter.cache.Delete(key)
-
-	// 2️⃣ 发出统一事件
 	if e.listener != nil {
 		e.listener.OnEvent(model.ExecutionEvent{
 			Type: model.EventFill,
@@ -45,10 +54,6 @@ func (e *LiveExecutor) OnOrderFilled(fill model.Fill) {
 }
 
 func (e *LiveExecutor) OnOrderRejected(intent model.Intent, err error) {
-	key := OrderKey{Token: intent.Token, Side: intent.Side}
-
-	e.submitter.cache.Delete(key)
-
 	if e.listener != nil {
 		e.listener.OnEvent(model.ExecutionEvent{
 			Type:   model.EventReject,

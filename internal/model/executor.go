@@ -1,5 +1,7 @@
 package model
 
+import "sync"
+
 type EventType int
 
 const (
@@ -15,4 +17,10 @@ type ExecutionEvent struct {
 	Fill   *Fill
 	Intent *Intent
 	Err    error
+}
+
+type OrderCache struct {
+	mu           sync.Mutex
+	OriginalSize float64
+	FilledSize   float64
 }

@@ -39,14 +39,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to load config: %v", err)
 	}
+
 	log.Printf("🚀 [%s] polyman system starting...", version.Version)
 	pmClient := pm.NewClient(cfg.OwnerKey, &cfg.PmSDK)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	md := marketdata.NewPolymarketData(cfg.PmSDK.Polymarket.ClobWSBaseURL, pmClient)
 	strategy := &strategies.PolymanStrategy{MarketSlug: cfg.MarketSlug}
-	orderer := executor.NewLiveExecutor(pmClient, nil, cfg.OrderEngine)
-	pos := position.NewManager()
+	orderer := executor.NewLiveExecutor(pmClient, nil, cfg.OrderEngine, cfg.PmSDK.Polymarket)
+	pos := position.NewManager(10000)
 
 	eng := engine.New(md, strategy, orderer, pos)
 

@@ -14,20 +14,23 @@ type PositionManager struct {
 	mu sync.RWMutex
 
 	// key = marketID:tokenID
-	positions map[string]*model.Position
+	positions map[string]*Position
 
 	// Fill 幂等
 	appliedFills map[string]struct{}
 
 	// 冻结仓位：OrderID -> FrozenPosition
 	frozen map[string]model.FrozenPosition
+
+	maxSize float64
 }
 
-func NewManager() *PositionManager {
+func NewManager(maxSize float64) *PositionManager {
 	return &PositionManager{
-		positions:    make(map[string]*model.Position),
+		positions:    make(map[string]*Position),
 		appliedFills: make(map[string]struct{}),
 		frozen:       make(map[string]model.FrozenPosition),
+		maxSize:      maxSize,
 	}
 }
 
@@ -39,10 +42,8 @@ func (m *PositionManager) CanOpen(in model.Intent) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	maxSize := float64(1000)
-
 	current := m.getEffectiveSizeLocked(in.Market, in.Token, in.Side)
-	return current+in.Size <= maxSize
+	return current+in.Size <= m.maxSize
 }
 
 func (m *PositionManager) GetPosition(marketID, tokenID string) model.PositionView {
@@ -79,13 +80,13 @@ func (pm *PositionManager) OnEvent(evt model.ExecutionEvent) {
 		}
 
 	case model.EventReject:
-		pm.unfreezeLocked(evt.Intent.OrderID, evt.Err)
+		pm.unfreezeLocked(evt.Intent, evt.Err)
 
 	case model.EventCancel:
-		pm.unfreezeLocked(evt.Intent.OrderID, nil)
+		pm.unfreezeLocked(evt.Intent, nil)
 
 	case model.EventExpire:
-		pm.unfreezeLocked(evt.Intent.OrderID, errors.New("order expired"))
+		pm.unfreezeLocked(evt.Intent, errors.New("order expired"))
 	}
 }
 
@@ -109,7 +110,7 @@ func (m *PositionManager) onFillLocked(fill model.Fill) {
 	key := fill.MarketID + ":" + fill.TokenID
 	pos, ok := m.positions[key]
 	if !ok {
-		pos = &model.Position{
+		pos = &Position{
 			MarketID: fill.MarketID,
 			TokenID:  fill.TokenID,
 		}
@@ -121,26 +122,28 @@ func (m *PositionManager) onFillLocked(fill model.Fill) {
 	}
 
 	// ---------- 3. 解冻 ----------
-	if frozen, ok := m.frozen[fill.OrderID]; ok {
+	if frozen, ok := m.frozen[key]; ok {
 		frozen.Size -= fill.Size
 		if frozen.Size <= 0 {
-			delete(m.frozen, fill.OrderID)
+			delete(m.frozen, key)
 		} else {
-			m.frozen[fill.OrderID] = frozen
+			m.frozen[key] = frozen
 		}
 	}
 }
 
-func (m *PositionManager) unfreezeLocked(orderID string, err error) {
-	if orderID == "" {
+func (m *PositionManager) unfreezeLocked(intent *model.Intent, err error) {
+	if intent == nil {
 		return
 	}
 
+	key := intent.Market + ":" + intent.Token
+
 	if err != nil {
-		log.Printf("[PositionManager] order end: %s, err=%v", orderID, err)
+		log.Printf("[PositionManager] key end: %s, err=%v", key, err)
 	}
 
-	delete(m.frozen, orderID)
+	delete(m.frozen, key)
 }
 
 /* =========================
@@ -148,28 +151,30 @@ func (m *PositionManager) unfreezeLocked(orderID string, err error) {
    ========================= */
 
 func (m *PositionManager) Freeze(intent model.Intent) error {
-	if intent.OrderID == "" {
-		return fmt.Errorf("empty OrderID")
-	}
 	if intent.Size <= 0 {
 		return fmt.Errorf("invalid size")
+	}
+	if intent.Side != model.SideBuy {
+		// only buy side can be frozen
+		return nil
 	}
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	key := intent.Market + ":" + intent.Token
 	// 幂等
-	if _, exists := m.frozen[intent.OrderID]; exists {
-		return nil
-	}
-
-	m.frozen[intent.OrderID] = model.FrozenPosition{
-		OrderID:   intent.OrderID,
-		MarketID:  intent.Market,
-		TokenID:   intent.Token,
-		Side:      intent.Side,
-		Size:      intent.Size,
-		CreatedAt: time.Now().UnixMilli(),
+	if frozen, exists := m.frozen[key]; exists {
+		frozen.Size += intent.Size
+		m.frozen[key] = frozen
+	} else {
+		m.frozen[key] = model.FrozenPosition{
+			MarketID:  intent.Market,
+			TokenID:   intent.Token,
+			Side:      intent.Side,
+			Size:      intent.Size,
+			CreatedAt: time.Now().UnixMilli(),
+		}
 	}
 
 	return nil

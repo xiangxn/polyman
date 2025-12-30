@@ -80,12 +80,14 @@ func (pm *PolymarketData) Run(ctx context.Context) error {
 		}
 	})
 
-	pm.ws.Start()
+	if err := pm.ws.Start(); err != nil {
+		return err
+	}
 
 	// 等待 ctx 结束
 	<-ctx.Done()
 	pm.Disconnect()
-	// close(pm.tickCh)
+	log.Println("[PolymarketData] Service stopped")
 	return ctx.Err()
 }
 
