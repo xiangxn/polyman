@@ -20,6 +20,25 @@ type OrderEngineConfig struct {
 	QueueSize int `mapstructure:"queue_size"`
 }
 
+type BalanceConfig struct {
+	ChainID       int64   `mapstructure:"chain_id"`
+	ChainRPC      string  `mapstructure:"chain_rpc"`
+	TokenAddress  string  `mapstructure:"token_address"`
+	FunderAddress *string `mapstructure:"funder_address"`
+	MinBalance    float64 `mapstructure:"min_balance"` // 需要保留的最小余额
+	Interval      int64   `mapstructure:"interval"`    // 轮询余额的间隔, 单位: 秒
+}
+
+func DefaultBalanceConfig() BalanceConfig {
+	return BalanceConfig{
+		ChainID:      137,
+		ChainRPC:     "https://polygon-rpc.com",
+		TokenAddress: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+		MinBalance:   100,
+		Interval:     30,
+	}
+}
+
 func NewOrderEngineConfig() *OrderEngineConfig {
 	return &OrderEngineConfig{
 		WorkerNum: 2,
@@ -33,6 +52,7 @@ type Config struct {
 	MarketSlug  string            `mapstructure:"market_slug"`
 	PmSDK       pm.Config         `mapstructure:"polymarket"`
 	OrderEngine OrderEngineConfig `mapstructure:"order_engine"`
+	Balance     BalanceConfig     `mapstructure:"balance"`
 }
 
 func Load() (*Config, error) {
@@ -58,6 +78,7 @@ func Load() (*Config, error) {
 		Encrypt:     false,
 		PmSDK:       *defConfig,
 		OrderEngine: *orderEngineConfig,
+		Balance:     DefaultBalanceConfig(),
 	}
 	if err := v.Unmarshal(&cfg); err != nil {
 		return nil, err
@@ -78,6 +99,7 @@ func Load() (*Config, error) {
 		var funderAddress string
 		_ = v.UnmarshalKey("polymarket.funder_address", &funderAddress)
 		cfg.PmSDK.Polymarket.FunderAddress = &funderAddress
+		cfg.Balance.FunderAddress = &funderAddress
 	}
 
 	if v.IsSet("polymarket.clob_creds") {

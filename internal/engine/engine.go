@@ -15,7 +15,7 @@ import (
 type Engine struct {
 	md       marketdata.MarketData
 	strategy strategies.Strategy
-	orderer  executor.Executor
+	executor executor.Executor
 	pos      *position.PositionManager
 
 	intentCh chan model.Intent
@@ -32,7 +32,7 @@ func New(
 
 func (e *Engine) Run(ctx context.Context) error {
 	// 0️⃣ 连接 Executor → PositionManager（一次性）
-	if src, ok := e.orderer.(executor.EventSource); ok {
+	if src, ok := e.executor.(executor.EventSource); ok {
 		src.SetListener(e.pos)
 	}
 
@@ -73,8 +73,12 @@ func (e *Engine) Run(ctx context.Context) error {
 				return fmt.Errorf("market data closed")
 			}
 
-			canOpen := true
 			intents := e.strategy.OnTick(tick)
+			if len(intents) == 0 {
+				continue
+			}
+
+			canOpen := true
 			for _, in := range intents {
 				if !e.pos.CanOpen(in) {
 					canOpen = false
@@ -82,9 +86,7 @@ func (e *Engine) Run(ctx context.Context) error {
 				}
 			}
 			if canOpen {
-				if err := e.orderer.Submit(ctx, intents); err != nil {
-					// executor 满 / ctx cancel
-					// 这里可以打 metrics
+				if err := e.executor.Submit(ctx, intents); err != nil {
 					continue
 				}
 				for _, in := range intents {

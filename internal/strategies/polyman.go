@@ -20,8 +20,9 @@ type PolymanStrategy struct {
 }
 
 func (s *PolymanStrategy) OnTick(t model.Tick) []model.Intent {
+	// log.Printf("[PolymanStrategy] tick: %+v, %d", t, len(s.Tokens))
 	if len(s.Tokens) < 2 {
-		log.Printf("Tokens length less than 2: %+v", s.Tokens)
+		log.Printf("[PolymanStrategy] Tokens length less than 2: %+v", s.Tokens)
 		return nil
 	}
 	token0, err := s.mdCtrl.GetTokenPrice(s.Tokens[0])

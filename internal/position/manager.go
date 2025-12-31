@@ -34,10 +34,9 @@ func NewManager(maxSize float64) *PositionManager {
 	}
 }
 
-/* =========================
-   Query / Risk
-   ========================= */
-
+/*
+检查仓位限制
+*/
 func (m *PositionManager) CanOpen(in model.Intent) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -146,10 +145,9 @@ func (m *PositionManager) unfreezeLocked(intent *model.Intent, err error) {
 	delete(m.frozen, key)
 }
 
-/* =========================
-   Freeze (explicit call)
-   ========================= */
-
+/*
+Freeze (explicit call)
+*/
 func (m *PositionManager) Freeze(intent model.Intent) error {
 	if intent.Size <= 0 {
 		return fmt.Errorf("invalid size")

@@ -233,11 +233,11 @@ func (pm *PolymarketData) subscribeToMarket(tokens ...string) {
 	data, _ := json.Marshal(subscribeMessage)
 	err := pm.ws.Send(data)
 	if err != nil {
-		log.Printf("订阅市场失败: %v", err)
+		log.Printf("[PolymarketData] 订阅市场失败: %v", err)
 		return
 	}
 
-	log.Printf("📡 已订阅市场: %v", pm.subsTokens)
+	log.Printf("[PolymarketData] 📡 已订阅市场: %v", pm.subsTokens)
 }
 
 func (pm *PolymarketData) updatePrice(priceData *PM.PriceData) {
@@ -253,5 +253,5 @@ func (pm *PolymarketData) GetTokenPrice(tokenID string) (PM.PriceData, error) {
 	if priceData, ok := pm.tokensPrice[tokenID]; ok {
 		return *priceData, nil
 	}
-	return PM.PriceData{}, fmt.Errorf("token price not found for %s", tokenID)
+	return PM.PriceData{}, fmt.Errorf("[PolymarketData] token price not found for %s", tokenID)
 }
