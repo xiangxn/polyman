@@ -73,21 +73,27 @@ func (e *Engine) Run(ctx context.Context) error {
 				return fmt.Errorf("market data closed")
 			}
 
+			canOpen := true
 			intents := e.strategy.OnTick(tick)
 			for _, in := range intents {
 				if !e.pos.CanOpen(in) {
-					continue
+					canOpen = false
+					break
 				}
-				if err := e.orderer.Submit(ctx, in); err != nil {
+			}
+			if canOpen {
+				if err := e.orderer.Submit(ctx, intents); err != nil {
 					// executor 满 / ctx cancel
 					// 这里可以打 metrics
 					continue
 				}
-				// ✅ 下单成功，冻结仓位
-				if err := e.pos.Freeze(in); err != nil {
-					// 理论上不应该失败
-					// 但失败时要记录，否则风控失效
-					log.Printf("[Engine] freeze position failed: %v", err)
+				for _, in := range intents {
+					// ✅ 下单成功，冻结仓位
+					if err := e.pos.Freeze(in); err != nil {
+						// 理论上不应该失败
+						// 但失败时要记录，否则风控失效
+						log.Printf("[Engine] freeze position failed: %v", err)
+					}
 				}
 			}
 		}

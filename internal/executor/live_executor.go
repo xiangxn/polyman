@@ -22,8 +22,8 @@ func NewLiveExecutor(pmClient *pm.PolymarketClient, listener ExecutionListener, 
 	}
 }
 
-func (e *LiveExecutor) Submit(ctx context.Context, intent model.Intent) error {
-	return e.submitter.Submit(ctx, intent)
+func (e *LiveExecutor) Submit(ctx context.Context, intents []model.Intent) error {
+	return e.submitter.Submit(ctx, intents)
 }
 
 func (e *LiveExecutor) Run(ctx context.Context) error {

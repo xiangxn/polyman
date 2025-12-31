@@ -7,7 +7,7 @@ import (
 )
 
 type Executor interface {
-	Submit(ctx context.Context, intent model.Intent) error
+	Submit(ctx context.Context, intents []model.Intent) error
 	Run(ctx context.Context) error
 }
 

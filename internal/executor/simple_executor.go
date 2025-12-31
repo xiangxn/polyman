@@ -8,18 +8,18 @@ import (
 )
 
 type SimpleExecutor struct {
-	ch chan model.Intent
+	ch chan []model.Intent
 }
 
 func NewSimpleExecutor() *SimpleExecutor {
 	return &SimpleExecutor{
-		ch: make(chan model.Intent, 100),
+		ch: make(chan []model.Intent, 100),
 	}
 }
 
-func (e *SimpleExecutor) Submit(ctx context.Context, intent model.Intent) error {
+func (e *SimpleExecutor) Submit(ctx context.Context, intents []model.Intent) error {
 	select {
-	case e.ch <- intent:
+	case e.ch <- intents:
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
