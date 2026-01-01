@@ -49,7 +49,7 @@ func main() {
 	md := marketdata.NewPolymarketData(cfg.PmSDK.Polymarket.ClobWSBaseURL, pmClient)
 	strategy := &strategies.PolymanStrategy{MarketSlug: cfg.MarketSlug}
 	orderer := executor.NewLiveExecutor(pmClient, nil, cfg.OrderEngine, cfg.PmSDK.Polymarket, cfg.Balance)
-	pos := position.NewManager(10000)
+	pos := position.NewManager(100)
 
 	eng := engine.New(md, strategy, orderer, pos)
 

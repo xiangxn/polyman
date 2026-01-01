@@ -6,4 +6,8 @@ type Tick struct {
 	Price     float64
 	Volume    float64
 	Timestamp int64
+
+	MinOrderSize float64
+	TickSize     float64
+	NegRisk      bool
 }

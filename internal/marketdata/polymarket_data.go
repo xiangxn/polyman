@@ -114,6 +114,9 @@ func (pm *PolymarketData) handleMessage(msg string) {
 	Asks := gjson.Get(msg, "asks").Array()
 	assetID := gjson.Get(msg, "asset_id").String()
 	timestamp := gjson.Get(msg, "timestamp").Int()
+	minOrderSize := gjson.Get(msg, "min_order_size").Float()
+	tickSize := gjson.Get(msg, "tick_size").Float()
+	negRisk := gjson.Get(msg, "neg_risk").Bool()
 
 	if len(Bids) == 0 && len(Asks) == 0 {
 		return
@@ -138,6 +141,10 @@ func (pm *PolymarketData) handleMessage(msg string) {
 		BestBid:   &bestBid,
 		Market:    market,
 		Timestamp: timestamp,
+
+		MinOrderSize: minOrderSize,
+		TickSize:     tickSize,
+		NegRisk:      negRisk,
 	})
 
 	tick := model.Tick{
@@ -146,6 +153,10 @@ func (pm *PolymarketData) handleMessage(msg string) {
 		Price:     bestBid.Price, // 可以根据策略选择 BestBid / BestAsk / Mid
 		Volume:    bestBid.Size,  // 可选填
 		Timestamp: timestamp,
+
+		MinOrderSize: minOrderSize,
+		TickSize:     tickSize,
+		NegRisk:      negRisk,
 	}
 
 	// 异步发送到 channel

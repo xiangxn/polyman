@@ -35,6 +35,7 @@ func NewBalanceManager(config *config.BalanceConfig) *BalanceManager {
 }
 
 func (m *BalanceManager) Run(ctx context.Context) error {
+	log.Println("[BalanceManager] Run start")
 	timer := time.NewTicker(time.Duration(m.config.Interval) * time.Second)
 	defer timer.Stop()
 

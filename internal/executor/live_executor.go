@@ -47,7 +47,10 @@ func (e *LiveExecutor) Submit(ctx context.Context, intents []model.Intent) error
 }
 
 func (e *LiveExecutor) Run(ctx context.Context) error {
+	log.Printf("[LiveExecutor] Run start")
 	e.submitter.SetOnReject(e.OnOrderRejected)
+	// 启动订单监听
+	go e.tradeMonitor.Run(ctx)
 	// 启动全额余额监听
 	go e.balanceManager.Run(ctx)
 	// 监听订单

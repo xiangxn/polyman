@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"sync"
+	"time"
 
 	pmModel "github.com/polymarket/go-order-utils/pkg/model"
 	"github.com/xiangxn/go-polymarket-sdk/orders"
@@ -57,6 +58,7 @@ func (e *ConcurrentSubmitter) Submit(ctx context.Context, intents []model.Intent
 
 // Run 启动 worker goroutine
 func (e *ConcurrentSubmitter) Run(ctx context.Context) error {
+	log.Println("[Executor] Run start")
 	for i := 0; i < e.workers; i++ {
 		e.wg.Add(1)
 		go func(id int) {
@@ -76,6 +78,7 @@ func (e *ConcurrentSubmitter) Run(ctx context.Context) error {
 
 	// 等待所有 worker 停止
 	e.wg.Wait()
+	log.Println("[Executor] Run exit")
 	return ctx.Err()
 }
 
@@ -185,6 +188,7 @@ func (s *ConcurrentSubmitter) handleOrder(workerID int, intents []model.Intent) 
 			}
 			// 发送订单
 			results, err := s.pmClient.PostOrders(os, false)
+			log.Printf("[Worker %d] 下单时间: %d", workerID, time.Now().UnixMilli())
 			if err != nil {
 				if s.onReject != nil {
 					for _, intent := range intents {

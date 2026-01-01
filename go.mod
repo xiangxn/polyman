@@ -7,7 +7,7 @@ require (
 	github.com/polymarket/go-order-utils v1.22.6
 	github.com/spf13/viper v1.21.0
 	github.com/tidwall/gjson v1.18.0
-	github.com/xiangxn/go-polymarket-sdk v0.1.14
+	github.com/xiangxn/go-polymarket-sdk v0.1.21
 	golang.org/x/term v0.38.0
 )
 

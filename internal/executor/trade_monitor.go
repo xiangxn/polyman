@@ -54,10 +54,12 @@ func (tm *TradeMonitor) Run(ctx context.Context) error {
 		}
 	})
 
+	log.Println("[TradeMonitor] Run start")
 	tm.ws.Start()
 
 	// 等待 ctx 结束
 	<-ctx.Done()
+	log.Println("[TradeMonitor] Run exit")
 	return ctx.Err()
 }
 
