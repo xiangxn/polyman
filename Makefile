@@ -1,6 +1,8 @@
 APP=polyman
 PKG=github.com/xiangxn/polyman/internal/version
 
+NAME ?= $(APP)
+
 VERSION := $(shell git describe --tags --always 2>/dev/null || echo dev)
 COMMIT  := $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 DATE    := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -14,10 +16,10 @@ LDFLAGS = -s -w \
 
 build-linux:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-	go build -trimpath -ldflags "$(LDFLAGS)" -o $(APP) ./cmd/polyman
+	go build -trimpath -ldflags "$(LDFLAGS)" -o $(NAME) ./cmd/$(NAME)
 
 build-mac:
-	go build -o $(APP) ./cmd/polyman
+	go build -o $(NAME) ./cmd/$(NAME)
 
 clean:
-	rm -f $(APP)
+	rm -f $(NAME)

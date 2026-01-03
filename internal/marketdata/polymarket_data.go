@@ -196,6 +196,8 @@ func (pm *PolymarketData) UnsubscribeTokens(tokens ...string) {
 }
 
 func (pm *PolymarketData) subscribeToMarket(tokens ...string) {
+	pm.fetchOrderbooks(tokens...)
+
 	pm.muSubsTokens.Lock()
 	defer pm.muSubsTokens.Unlock()
 
@@ -237,6 +239,42 @@ func (pm *PolymarketData) updatePrice(priceData *PM.PriceData) {
 	pm.tokensPrice[priceData.TokenID] = priceData
 }
 
+func (pm *PolymarketData) fetchOrderbooks(tokens ...string) {
+	var params []PM.BookParams
+	for _, token := range tokens {
+		params = append(params, PM.BookParams{TokenId: token})
+	}
+	orderBooks, err := pm.pmClient.GetOrderBooks(params)
+	if err != nil {
+		log.Printf("[PolymarketData] 获取订单簿失败: %v", err)
+		return
+	}
+
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	for _, orderBook := range orderBooks {
+		var bestBid, bestAsk orders.Book
+		if len(orderBook.Bids) > 0 {
+			bestBid = slices.MaxFunc(orderBook.Bids, func(a, b orders.Book) int { return cmp.Compare(a.Price, b.Price) })
+
+		}
+		if len(orderBook.Asks) > 0 {
+			bestAsk = slices.MinFunc(orderBook.Asks, func(a, b orders.Book) int { return cmp.Compare(a.Price, b.Price) })
+		}
+		pm.tokensPrice[orderBook.AssetId] = &PM.PriceData{
+			TokenID:      orderBook.AssetId,
+			BestAsk:      &bestAsk,
+			BestBid:      &bestBid,
+			Market:       orderBook.Market,
+			Timestamp:    orderBook.Timestamp,
+			MinOrderSize: orderBook.MinOrderSize,
+			TickSize:     orderBook.TickSize,
+			NegRisk:      orderBook.NegRisk,
+		}
+	}
+}
+
 func (pm *PolymarketData) GetTokenPrice(tokenID string) (PM.PriceData, error) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
@@ -256,6 +294,7 @@ func (pm *PolymarketData) OnOpen() {
 }
 
 func (pm *PolymarketData) OnReconnect() {
+	log.Println("[PolymarketData] WebSocket Reconnect...")
 	// 清空数据，防止旧数据异常
 	pm.mu.Lock()
 	defer pm.mu.Unlock()

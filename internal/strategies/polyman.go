@@ -8,6 +8,7 @@ import (
 
 	"github.com/xiangxn/polyman/internal/marketdata"
 	"github.com/xiangxn/polyman/internal/model"
+	pmHelper "github.com/xiangxn/polyman/internal/utils"
 
 	"github.com/tidwall/gjson"
 	"github.com/xiangxn/go-polymarket-sdk/polymarket"
@@ -117,7 +118,7 @@ func (s *PolymanStrategy) Run(ctx context.Context) error {
 
 	pmClient := s.mdCtrl.GetClient()
 	for {
-		marketSlug := fmt.Sprintf("%s%d", s.MarketSlug, utils.RoundTo15Minutes())
+		marketSlug := pmHelper.FormatSlug(s.MarketSlug)
 		market, err := pmClient.FetchMarketBySlug(marketSlug)
 		if err != nil {
 			log.Println("FetchMarketBySlug failed:", err)

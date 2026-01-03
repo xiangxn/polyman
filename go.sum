@@ -183,8 +183,8 @@ github.com/tklauser/numcpus v0.6.1 h1:ng9scYS7az0Bk4OZLvrNXNSAO2Pxr1XXRAPyjhIx+F
 github.com/tklauser/numcpus v0.6.1/go.mod h1:1XfjsgE2zo8GVw7POkMbHENHzVg3GzmoZ9fESEdAacY=
 github.com/urfave/cli/v2 v2.27.5 h1:WoHEJLdsXr6dDWoJgMq/CboDmyY/8HMMH1fTECbih+w=
 github.com/urfave/cli/v2 v2.27.5/go.mod h1:3Sevf16NykTbInEnD0yKkjDAeZDS0A6bzhBH5hrMvTQ=
-github.com/xiangxn/go-polymarket-sdk v0.1.30 h1:sTis8YlVYV3QX7sB4HFikXJTYi4Xl1Iwqtwbfb0fulI=
-github.com/xiangxn/go-polymarket-sdk v0.1.30/go.mod h1:wYs7V17CGe//HOX/2yykaUrnF3B0laAymPTNleCQgW8=
+github.com/xiangxn/go-polymarket-sdk v0.1.34 h1:4syfqO6mzFXo8QbM9xcjAVozAb2BBIR5FWvIxzjKIHk=
+github.com/xiangxn/go-polymarket-sdk v0.1.34/go.mod h1:wYs7V17CGe//HOX/2yykaUrnF3B0laAymPTNleCQgW8=
 github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 h1:gEOO8jv9F4OT7lGCjxCBTO/36wtF6j2nSip77qHd4x4=
 github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1/go.mod h1:Ohn+xnUBiLI6FVj/9LpzZWtj1/D6lUovWYBkxHVV3aM=
 go.yaml.in/yaml/v3 v3.0.4 h1:tfq32ie2Jv2UxXFdLJdh3jXuOzWiL1fo0bu/FbuKpbc=
