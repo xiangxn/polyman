@@ -15,7 +15,7 @@ import (
 )
 
 type TradeMonitor struct {
-	ws             *utils.WebSocketClient
+	ws             utils.WSClient
 	creds          *headers.ApiKeyCreds
 	funderAddress  string
 	clobUserWSSURL string
@@ -33,33 +33,23 @@ func NewTradeMonitor(wsBaseUrl string, funderAddress string, creds *headers.ApiK
 }
 
 func (tm *TradeMonitor) Run(ctx context.Context) error {
+	log.Println("[TradeMonitor] Run start")
+	defer log.Println("[TradeMonitor] Run exit")
+
 	if tm.ws != nil && tm.ws.IsAlive() {
 		return nil
 	}
-	tm.ws = utils.NewWebSocketClient(tm.clobUserWSSURL, 10*time.Second)
+	tm.ws = utils.NewWSClient(utils.WSConfig{
+		URL:          tm.clobUserWSSURL,
+		PingInterval: 10 * time.Second,
+		Reconnect:    true,
+		MaxReconnect: 20,
+	}, tm)
 
-	tm.ws.On("open", func(_ any) {
-		log.Println("[TradeMonitor] WebSocket Connected")
-		tm.subscribeUserTrade()
-	})
-	tm.ws.On("error", func(e any) {
-		log.Println("[TradeMonitor] WebSocket Error:", e)
-	})
-	tm.ws.On("close", func(_ any) {
-		log.Println("[TradeMonitor] WebSocket Closed")
-	})
-	tm.ws.OnMessage(func(msg []byte) {
-		if string(msg) != "PONG" {
-			tm.handleMessage(ctx, msg)
-		}
-	})
+	if err := tm.ws.Run(ctx); err != nil {
+		return err
+	}
 
-	log.Println("[TradeMonitor] Run start")
-	tm.ws.Start()
-
-	// 等待 ctx 结束
-	<-ctx.Done()
-	log.Println("[TradeMonitor] Run exit")
 	return ctx.Err()
 }
 
@@ -93,7 +83,7 @@ func (tm *TradeMonitor) getAuth() model.ClobAuth {
 	}
 }
 
-func (tm *TradeMonitor) handleMessage(ctx context.Context, msg []byte) {
+func (tm *TradeMonitor) handleMessage(msg []byte) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("[TradeMonitor] handleMessage panic: %v", r)
@@ -134,8 +124,8 @@ func (tm *TradeMonitor) handleMessage(ctx context.Context, msg []byte) {
 			// 异步发送到 channel
 			select {
 			case tm.fillCh <- fill:
-			case <-ctx.Done():
-				log.Println("[TradeMonitor] handleMessage taker ctx.Done")
+			default:
+				log.Println("[TradeMonitor] fill channel full, dropping fill")
 			}
 		} else { // maker
 			for _, mo := range wsTrade.MakerOrders {
@@ -153,8 +143,8 @@ func (tm *TradeMonitor) handleMessage(ctx context.Context, msg []byte) {
 					// 异步发送到 channel
 					select {
 					case tm.fillCh <- newFill:
-					case <-ctx.Done():
-						log.Println("[TradeMonitor] handleMessage maker ctx.Done")
+					default:
+						log.Println("[TradeMonitor] fill channel full, dropping fill")
 					}
 				}
 			}
@@ -182,4 +172,27 @@ func (tm *TradeMonitor) handleMessage(ctx context.Context, msg []byte) {
 
 func (tm *TradeMonitor) Subscribe() <-chan model.Fill {
 	return tm.fillCh
+}
+
+func (tm *TradeMonitor) OnOpen() {
+	log.Println("[TradeMonitor] WebSocket Connected")
+	tm.subscribeUserTrade()
+}
+
+func (tm *TradeMonitor) OnError(err error) {
+	log.Println("[TradeMonitor] WebSocket Error:", err)
+}
+
+func (tm *TradeMonitor) OnClose() {
+	log.Println("[TradeMonitor] WebSocket Closed")
+}
+
+func (tm *TradeMonitor) OnReconnect() {
+	tm.subscribeUserTrade()
+}
+
+func (tm *TradeMonitor) OnMessage(msg []byte) {
+	if string(msg) != "PONG" {
+		tm.handleMessage(msg)
+	}
 }

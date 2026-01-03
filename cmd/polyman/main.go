@@ -48,14 +48,14 @@ func main() {
 
 	md := marketdata.NewPolymarketData(cfg.PmSDK.Polymarket.ClobWSBaseURL, pmClient)
 	strategy := &strategies.PolymanStrategy{MarketSlug: cfg.MarketSlug}
-	orderer := executor.NewLiveExecutor(pmClient, nil, cfg.OrderEngine, cfg.PmSDK.Polymarket, cfg.Balance)
+	executor := executor.NewLiveExecutor(pmClient, nil, cfg.OrderEngine, cfg.PmSDK.Polymarket, cfg.Balance)
 	pos := position.NewManager(100)
 
-	eng := engine.New(md, strategy, orderer, pos)
+	eng := engine.New(md, strategy, executor, pos)
 
 	g := common.NewSafeGroup(ctx)
 	g.Go("market-data", md.Run)
-	g.Go("orderer", orderer.Run)
+	g.Go("executor", executor.Run)
 	g.Go("engine", eng.Run)
 
 	sigCh := make(chan os.Signal, 1)

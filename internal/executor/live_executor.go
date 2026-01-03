@@ -48,6 +48,8 @@ func (e *LiveExecutor) Submit(ctx context.Context, intents []model.Intent) error
 
 func (e *LiveExecutor) Run(ctx context.Context) error {
 	log.Printf("[LiveExecutor] Run start")
+	defer log.Printf("[LiveExecutor] Run exit")
+
 	e.submitter.SetOnReject(e.OnOrderRejected)
 	// 启动订单监听
 	go e.tradeMonitor.Run(ctx)

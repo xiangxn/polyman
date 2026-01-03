@@ -31,6 +31,9 @@ func New(
 }
 
 func (e *Engine) Run(ctx context.Context) error {
+	log.Println("[Engine] Run starting")
+	defer log.Println("[Engine] Run exit")
+
 	// 0️⃣ 连接 Executor → PositionManager（一次性）
 	if src, ok := e.executor.(executor.EventSource); ok {
 		src.SetListener(e.pos)

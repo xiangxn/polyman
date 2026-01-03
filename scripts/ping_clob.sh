@@ -1,0 +1,18 @@
+curl -v -w "dns:%{time_namelookup} connect:%{time_connect} tls:%{time_appconnect} ttfb:%{time_starttransfer} total:%{time_total}\n" \
+     --proxy-header "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36" \
+     -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36" \
+     -H 'Accept-encoding: gzip, deflate, br, zstd' \
+     -H 'Accept-language: zh-CN,zh;q=0.9,en;q=0.8' \
+     -H 'Cache-control: max-age=0' \
+     -H 'Oriority: u=0, i' \
+     -H 'Sec-ch-ua: "Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24"' \
+     -H 'Sec-ch-ua-mobile: ?0' \
+     -H 'Sec-ch-ua-platform: "macOS"' \
+     -H 'Sec-fetch-dest: document' \
+     -H 'Sec-fetch-mode: navigate' \
+     -H 'Sec-fetch-site: none' \
+     -H 'Sec-fetch-user: ?1' \
+     -H 'Upgrade-insecure-requests: 1' \
+     --compressed \
+     -s https://clob.polymarket.com/time \
+     -o /dev/null \

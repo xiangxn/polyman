@@ -20,7 +20,7 @@ import (
 )
 
 type PolymarketData struct {
-	ws               *utils.WebSocketClient
+	ws               utils.WSClient
 	tickCh           chan model.Tick
 	tokensPrice      map[string]*PM.PriceData
 	mu               sync.RWMutex
@@ -46,48 +46,28 @@ func (pm *PolymarketData) GetClient() *PM.PolymarketClient {
 
 // Run 启动 WebSocket 监听
 func (pm *PolymarketData) Run(ctx context.Context) error {
+	log.Println("[PolymarketData] Run start")
+	defer log.Println("[PolymarketData] Run exit")
+
 	if pm.isConnecting.Load() || (pm.ws != nil && pm.ws.IsAlive()) {
 		return nil
 	}
 
 	pm.isConnecting.Store(true)
 
-	pm.ws = utils.NewWebSocketClient(pm.clobMarketWSSURL, 10*time.Second)
+	pm.ws = utils.NewWSClient(utils.WSConfig{
+		URL:          pm.clobMarketWSSURL,
+		PingInterval: 10 * time.Second,
+		Reconnect:    true,
+		MaxReconnect: 20,
+	}, pm)
 
-	pm.ws.On("open", func(_ any) {
-		log.Println("[PolymarketData] WebSocket Connected")
-		pm.isConnecting.Store(false)
-		pm.subscribeToMarket()
-	})
-	pm.ws.On("error", func(e any) {
-		log.Println("[PolymarketData] WebSocket Error:", e)
-		pm.isConnecting.Store(false)
-	})
-	pm.ws.On("close", func(_ any) {
-		log.Println("[PolymarketData] WebSocket Closed")
-		pm.isConnecting.Store(false)
-	})
-	pm.ws.On("reconnect", func(_ any) {
-		// 清空数据，防止旧数据异常
-		pm.mu.Lock()
-		pm.tokensPrice = make(map[string]*PM.PriceData)
-		pm.mu.Unlock()
-	})
-
-	pm.ws.OnMessage(func(msg []byte) {
-		if string(msg) != "PONG" {
-			pm.handleMessage(string(msg))
-		}
-	})
-
-	if err := pm.ws.Start(); err != nil {
+	if err := pm.ws.Run(ctx); err != nil {
+		pm.Disconnect()
 		return err
 	}
 
-	// 等待 ctx 结束
-	<-ctx.Done()
 	pm.Disconnect()
-	log.Println("[PolymarketData] Service stopped")
 	return ctx.Err()
 }
 
@@ -265,4 +245,37 @@ func (pm *PolymarketData) GetTokenPrice(tokenID string) (PM.PriceData, error) {
 		return *priceData, nil
 	}
 	return PM.PriceData{}, fmt.Errorf("[PolymarketData] token price not found for %s", tokenID)
+}
+
+/***WSClient handler实现***/
+
+func (pm *PolymarketData) OnOpen() {
+	log.Println("[PolymarketData] WebSocket Connected")
+	pm.isConnecting.Store(false)
+	pm.subscribeToMarket()
+}
+
+func (pm *PolymarketData) OnReconnect() {
+	// 清空数据，防止旧数据异常
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	pm.tokensPrice = make(map[string]*PM.PriceData)
+	pm.subscribeToMarket()
+}
+
+func (pm *PolymarketData) OnError(err error) {
+	log.Println("[PolymarketData] WebSocket Error:", err)
+	pm.isConnecting.Store(false)
+}
+
+func (pm *PolymarketData) OnClose() {
+	log.Println("[PolymarketData] WebSocket Closed")
+	pm.isConnecting.Store(false)
+}
+
+func (pm *PolymarketData) OnMessage(msg []byte) {
+	if string(msg) != "PONG" {
+		pm.handleMessage(string(msg))
+	}
 }

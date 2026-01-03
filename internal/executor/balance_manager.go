@@ -35,18 +35,23 @@ func NewBalanceManager(config *config.BalanceConfig) *BalanceManager {
 }
 
 func (m *BalanceManager) Run(ctx context.Context) error {
+	myCtx, cancel := context.WithCancel(ctx)
 	log.Println("[BalanceManager] Run start")
+	defer func() {
+		log.Println("[BalanceManager] Run exit")
+		cancel()
+	}()
+
 	timer := time.NewTicker(time.Duration(m.config.Interval) * time.Second)
 	defer timer.Stop()
 
-	m.syncOnce(ctx)
+	m.syncOnce(myCtx)
 	for {
 		select {
-		case <-ctx.Done():
-			log.Println("[BalanceManager] Run exit")
-			return ctx.Err()
+		case <-myCtx.Done():
+			return myCtx.Err()
 		case <-timer.C:
-			m.syncOnce(ctx)
+			m.syncOnce(myCtx)
 		}
 	}
 }

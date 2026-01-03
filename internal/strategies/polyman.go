@@ -4,14 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"math"
 	"time"
 
 	"github.com/xiangxn/polyman/internal/marketdata"
 	"github.com/xiangxn/polyman/internal/model"
 
 	"github.com/tidwall/gjson"
-	"github.com/xiangxn/go-polymarket-sdk/orders"
+	"github.com/xiangxn/go-polymarket-sdk/polymarket"
 	"github.com/xiangxn/go-polymarket-sdk/utils"
 )
 
@@ -19,59 +18,87 @@ type PolymanStrategy struct {
 	MarketSlug string
 	mdCtrl     marketdata.MarketDataController
 	Tokens     []string
+
+	print    bool
+	lastTime int64
 }
 
 func (s *PolymanStrategy) OnTick(t model.Tick) []model.Intent {
 	// log.Printf("[PolymanStrategy] tick: %+v, %d", t, len(s.Tokens))
-	if len(s.Tokens) < 2 {
+	length := len(s.Tokens)
+	if length < 2 {
 		log.Printf("[PolymanStrategy] Tokens length less than 2: %+v", s.Tokens)
 		return nil
 	}
-	token0, err := s.mdCtrl.GetTokenPrice(s.Tokens[0])
-	if err != nil {
-		return nil
-	}
-	token1, err := s.mdCtrl.GetTokenPrice(s.Tokens[1])
-	if err != nil {
-		return nil
-	}
 
-	if token0.BestAsk.Price == 0 || token1.BestAsk.Price == 0 {
-		return nil
-	}
+	var tokens []polymarket.PriceData
 
-	if token0.BestAsk.Price+token1.BestAsk.Price < 1.0 { // 价格和小于1是基本条件
-		now := time.Now().UnixMilli()
-		log.Printf("Book Data === BestAsk: %.2f/%.2f=%.2f, %.2f/%.2f, delay: %d, diff: %d, now: %d", token0.BestAsk.Price, token1.BestAsk.Price, token0.BestAsk.Price+token1.BestAsk.Price, token0.BestAsk.Size, token1.BestAsk.Size, now-t.Timestamp, token0.Timestamp-token1.Timestamp, now)
-		if now-t.Timestamp < 500 { // 小于500ms的才尝试下单
-			maxSize := 10.0
-			minSize := math.Min(token0.BestAsk.Size, token1.BestAsk.Size)
-			minSize = minSize * 0.5
-			if minSize < 5 {
+	for _, tid := range s.Tokens {
+		t, err := s.mdCtrl.GetTokenPrice(tid)
+		if err != nil {
+			return nil
+		} else {
+			if t.BestAsk.Price == 0 {
 				return nil
 			}
-			size := math.Min(minSize, maxSize)
-			log.Printf("[PolymanStrategy] Order size: %.2f, token0Price: %.2f, token1Price: %.2f", size, token0.BestAsk.Price, token1.BestAsk.Price)
-			return []model.Intent{
-				{
-					Market: t.Market,
-					Token:  token0.TokenID,
-					Size:   size,
-					Price:  token0.BestAsk.Price,
+			tokens = append(tokens, t)
+		}
+	}
 
-					Side:      model.SideBuy,
-					OrderType: orders.FAK,
-				},
-				{
-					Market: t.Market,
-					Token:  token1.TokenID,
-					Size:   size,
-					Price:  token1.BestAsk.Price,
+	totalPrice := 0.0
+	pStr := ""
+	sStr := ""
+	for i, t := range tokens {
+		totalPrice += t.BestAsk.Price
+		if i == length-1 {
+			pStr += fmt.Sprintf("%.2f", t.BestAsk.Price)
+			sStr += fmt.Sprintf("%.2f", t.BestAsk.Size)
+		} else {
+			pStr += fmt.Sprintf("%.2f+", t.BestAsk.Price)
+			sStr += fmt.Sprintf("%.2f/", t.BestAsk.Size)
+		}
+	}
 
-					Side:      model.SideBuy,
-					OrderType: orders.FAK,
-				},
-			}
+	if s.print {
+		s.print = false
+		now := time.Now().UnixMilli()
+		log.Printf("Book New  === Prices: %s=%.2f, Sizes: %s, MS: %d", pStr, totalPrice, sStr, now-s.lastTime)
+	}
+
+	if totalPrice < 1.0 { // 价格和小于1是基本条件
+		s.print = true
+		now := time.Now().UnixMilli()
+		s.lastTime = now
+		log.Printf("Book Data === Prices: %s=%.2f, Sizes: %s, Delay: %d", pStr, totalPrice, sStr, now-t.Timestamp)
+		if now-t.Timestamp < 500 { // 小于500ms的才尝试下单
+			// maxSize := 5.0
+			// minSize := math.Min(token0.BestAsk.Size, token1.BestAsk.Size)
+			// minSize = minSize * 0.5
+			// if minSize < 5 {
+			// 	return nil
+			// }
+			// size := math.Min(minSize, maxSize)
+			// log.Printf("[PolymanStrategy] Order size: %.2f, token0Price: %.2f, token1Price: %.2f", size, token0.BestAsk.Price, token1.BestAsk.Price)
+			// return []model.Intent{
+			// 	{
+			// 		Market: t.Market,
+			// 		Token:  token0.TokenID,
+			// 		Size:   size,
+			// 		Price:  token0.BestAsk.Price,
+
+			// 		Side:      model.SideBuy,
+			// 		OrderType: orders.FAK,
+			// 	},
+			// 	{
+			// 		Market: t.Market,
+			// 		Token:  token1.TokenID,
+			// 		Size:   size,
+			// 		Price:  token1.BestAsk.Price,
+
+			// 		Side:      model.SideBuy,
+			// 		OrderType: orders.FAK,
+			// 	},
+			// }
 		}
 	}
 
@@ -85,6 +112,9 @@ func (s *PolymanStrategy) Init(ctx context.Context, ctrl marketdata.MarketDataCo
 
 // 可选的周期性处理，或市场结束处理
 func (s *PolymanStrategy) Run(ctx context.Context) error {
+	log.Println("[PolymanStrategy] Run start")
+	defer log.Println("[PolymanStrategy] Run exit")
+
 	pmClient := s.mdCtrl.GetClient()
 	for {
 		marketSlug := fmt.Sprintf("%s%d", s.MarketSlug, utils.RoundTo15Minutes())
@@ -94,6 +124,8 @@ func (s *PolymanStrategy) Run(ctx context.Context) error {
 			utils.SleepWithCtx(ctx, 5*time.Second)
 			continue
 		}
+
+		log.Printf("[PolymanStrategy] Market: %s", market.Get("conditionId").String())
 
 		endData, err := utils.ToTimestamp(market.Get("endDate").String())
 		if err != nil {
