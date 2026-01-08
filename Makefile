@@ -1,5 +1,5 @@
 APP=polyman
-PKG=github.com/xiangxn/polyman/internal/version
+PKG=github.com/xiangxn/polyman/pkg/version
 
 NAME ?= $(APP)
 

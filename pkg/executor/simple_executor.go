@@ -4,20 +4,20 @@ import (
 	"context"
 	"log"
 
-	"github.com/xiangxn/polyman/pkg/model"
+	"github.com/xiangxn/polyman/pkg/engine"
 )
 
 type SimpleExecutor struct {
-	ch chan []model.Intent
+	ch chan []engine.Intent
 }
 
 func NewSimpleExecutor() *SimpleExecutor {
 	return &SimpleExecutor{
-		ch: make(chan []model.Intent, 100),
+		ch: make(chan []engine.Intent, 100),
 	}
 }
 
-func (e *SimpleExecutor) Submit(ctx context.Context, intents []model.Intent) error {
+func (e *SimpleExecutor) Submit(ctx context.Context, intents []engine.Intent) error {
 	select {
 	case e.ch <- intents:
 		return nil

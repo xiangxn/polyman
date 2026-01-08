@@ -7,7 +7,6 @@ import (
 	"github.com/xiangxn/go-polymarket-sdk/orders"
 	"github.com/xiangxn/polyman/pkg/engine"
 	"github.com/xiangxn/polyman/pkg/marketdata"
-	"github.com/xiangxn/polyman/pkg/model"
 )
 
 type SimpleStrategy struct {
@@ -18,15 +17,15 @@ func (s *SimpleStrategy) SetEventBus(bus *engine.EventBus) {
 	s.bus = bus
 }
 
-func (s *SimpleStrategy) OnTick(e marketdata.MockEvent) []model.Intent {
+func (s *SimpleStrategy) OnTick(e marketdata.MockEvent) []engine.Intent {
 	if e.Price < 101 {
-		return []model.Intent{
+		return []engine.Intent{
 			{
 				StrategyID: s.Name(),
-				Market:     e.Market,
-				Token:      e.Token,
-				Side:       model.SideBuy,
-				OrderType:  orders.GTC,
+				MarketID:   e.Market,
+				TokenID:    e.Token,
+				Side:       engine.BUY,
+				Type:       orders.GTC,
 				Price:      e.Price,
 				Size:       1,
 			},

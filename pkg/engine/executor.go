@@ -2,8 +2,6 @@ package engine
 
 import (
 	"context"
-
-	"github.com/xiangxn/polyman/pkg/model"
 )
 
 type Executor interface {
@@ -11,5 +9,5 @@ type Executor interface {
 }
 
 type ExecutorController interface {
-	Submit(ctx context.Context, intents []model.Intent) error
+	Submit(ctx context.Context, intents []Intent) error
 }
