@@ -187,7 +187,7 @@ func (m *PositionManager) getEffectiveSizeLocked(
 	tokenID string,
 	side model.Side,
 ) float64 {
-	var size float64
+	size := 0.0
 
 	if pos, ok := m.positions[marketID+":"+tokenID]; ok {
 		if pos.Side == side {

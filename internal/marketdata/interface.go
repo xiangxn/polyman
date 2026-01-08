@@ -3,6 +3,7 @@ package marketdata
 import (
 	"context"
 
+	"github.com/xiangxn/polyman/internal/engine"
 	"github.com/xiangxn/polyman/internal/model"
 
 	PM "github.com/xiangxn/go-polymarket-sdk/polymarket"
@@ -14,6 +15,7 @@ type MarketData interface {
 }
 
 type MarketDataController interface {
+	engine.Controller
 	SubscribeTokens(tokens ...string)
 	UnsubscribeTokens(tokens ...string)
 

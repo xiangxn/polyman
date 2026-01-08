@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"math"
 	"time"
 
 	"github.com/xiangxn/polyman/internal/marketdata"
@@ -24,9 +23,11 @@ type PolyeventStrategy struct {
 	Tokens    []string
 	event     PolyEvent
 
-	print        map[string]bool
-	printNegRisk bool
-	lastTime     int64
+	print           map[string]bool
+	printBid        map[string]bool
+	printNegRisk    bool
+	printNegRiskBid bool
+	lastTime        int64
 }
 
 type PolyEvent struct {
@@ -43,6 +44,7 @@ type PolyMarket struct {
 
 func (s *PolyeventStrategy) OnTick(t model.Tick) []model.Intent {
 	// log.Printf("[PolyeventStrategy] tick: %+v, %d", t, len(s.Tokens))
+
 	length := len(s.Tokens)
 	if length < 2 {
 		log.Printf("[PolyeventStrategy] Tokens length less than 2: %+v", s.Tokens)
@@ -67,33 +69,57 @@ func (s *PolyeventStrategy) OnTick(t model.Tick) []model.Intent {
 	marketTotalPrice := 0.0
 	pStr := ""
 	sStr := ""
+	marketTotalBidPrice := 0.0
+	bidPstr := ""
+	bidSstr := ""
 	market := s.event.Markets[t.Market]
 	for i, tid := range market.Tokens {
 		marketTotalPrice += tokens[tid].BestAsk.Price
+		marketTotalBidPrice += tokens[tid].BestBid.Price
 		if i == len(market.Tokens)-1 {
 			pStr += fmt.Sprintf("%.2f", tokens[tid].BestAsk.Price)
 			sStr += fmt.Sprintf("%.2f", tokens[tid].BestAsk.Size)
+
+			bidPstr += fmt.Sprintf("%.2f", tokens[tid].BestBid.Price)
+			bidSstr += fmt.Sprintf("%.2f", tokens[tid].BestBid.Size)
 		} else {
 			pStr += fmt.Sprintf("%.2f+", tokens[tid].BestAsk.Price)
 			sStr += fmt.Sprintf("%.2f/", tokens[tid].BestAsk.Size)
+
+			bidPstr += fmt.Sprintf("%.2f+", tokens[tid].BestBid.Price)
+			bidSstr += fmt.Sprintf("%.2f/", tokens[tid].BestBid.Size)
 		}
 	}
 	if s.print[t.Market] {
 		s.print[t.Market] = false
 		now := time.Now().UnixMilli()
 		log.Printf("Market[%s] === Prices: %s=%.2f, Sizes: %s, MS: %d, Now: %d", market.ID, pStr, marketTotalPrice, sStr, now-s.lastTime, now)
+	} else if s.printBid[t.Market] {
+		s.printBid[t.Market] = false
+		now := time.Now().UnixMilli()
+		log.Printf("Market[%s] === Prices: %s=%.2f, Sizes: %s, MS: %d, Now: %d", market.ID, bidPstr, marketTotalBidPrice, bidSstr, now-s.lastTime, now)
 	}
-	if !(math.Abs(marketTotalPrice-1.0) < eps) && marketTotalPrice < 1.0 { // 价格和小于1是基本条件
+
+	if marketTotalPrice < 1.0 { // 价格和小于1是基本条件
 		s.print[t.Market] = true
 		now := time.Now().UnixMilli()
 		s.lastTime = now
-		log.Printf("Market[%s] === Prices: %s=%.2f, Sizes: %s, Delay: %d, Now: %d", market.ID, pStr, marketTotalPrice, sStr, now-t.Timestamp, now)
+		log.Printf("Market[%s] <1= Prices: %s=%.2f, Sizes: %s, Delay: %d, Now: %d", market.ID, pStr, marketTotalPrice, sStr, now-t.Timestamp, now)
+	} else if marketTotalBidPrice > 1.0 { // 价格和大于1是基本条件
+		s.printBid[t.Market] = true
+		now := time.Now().UnixMilli()
+		s.lastTime = now
+		log.Printf("Market[%s] >1= Prices: %s=%.2f, Sizes: %s, Delay: %d, Now: %d", market.ID, bidPstr, marketTotalBidPrice, bidSstr, now-t.Timestamp, now)
 	}
 
 	if s.event.NegRisk {
 		pStr := ""
 		sStr := ""
 		negriskTotalPrice := 0.0
+
+		bidPstr := ""
+		bidSstr := ""
+		bidNegriskTotalPrice := 0.0
 		var tokenIds []string
 		for _, v := range s.event.Markets {
 			tokenIds = append(tokenIds, v.Tokens[0])
@@ -101,26 +127,44 @@ func (s *PolyeventStrategy) OnTick(t model.Tick) []model.Intent {
 		length = len(tokenIds)
 		for i, t := range tokenIds {
 			negriskTotalPrice += tokens[t].BestAsk.Price
+			bidNegriskTotalPrice += tokens[t].BestBid.Price
 			if i == length-1 {
 				pStr += fmt.Sprintf("%.2f", tokens[t].BestAsk.Price)
 				sStr += fmt.Sprintf("%.2f", tokens[t].BestAsk.Size)
+
+				bidPstr += fmt.Sprintf("%.2f", tokens[t].BestBid.Price)
+				bidSstr += fmt.Sprintf("%.2f", tokens[t].BestBid.Size)
 			} else {
 				pStr += fmt.Sprintf("%.2f+", tokens[t].BestAsk.Price)
 				sStr += fmt.Sprintf("%.2f/", tokens[t].BestAsk.Size)
+
+				bidPstr += fmt.Sprintf("%.2f+", tokens[t].BestBid.Price)
+				bidSstr += fmt.Sprintf("%.2f/", tokens[t].BestBid.Size)
 			}
 		}
+
 		if s.printNegRisk {
 			s.printNegRisk = false
 			now := time.Now().UnixMilli()
 			log.Printf("Event[%s] === Prices: %s=%.2f, Sizes: %s, MS: %d, Now: %d", s.event.ID, pStr, negriskTotalPrice, sStr, now-s.lastTime, now)
+		} else if s.printNegRiskBid {
+			s.printNegRiskBid = false
+			now := time.Now().UnixMilli()
+			log.Printf("Event[%s] === Prices: %s=%.2f, Sizes: %s, MS: %d, Now: %d", s.event.ID, bidPstr, bidNegriskTotalPrice, bidSstr, now-s.lastTime, now)
 		}
 
-		if !(math.Abs(negriskTotalPrice-1.0) < eps) && negriskTotalPrice < 1.0 { // 价格和小于1是基本条件
+		if negriskTotalPrice < 1.0 { // 价格和小于1是基本条件
 			s.printNegRisk = true
 			now := time.Now().UnixMilli()
 			s.lastTime = now
-			log.Printf("Event[%s] === Prices: %s=%.2f, Sizes: %s, Delay: %d, Now: %d", s.event.ID, pStr, negriskTotalPrice, sStr, now-t.Timestamp, now)
+			log.Printf("Event[%s] <1= Prices: %s=%.2f, Sizes: %s, Delay: %d, Now: %d", s.event.ID, pStr, negriskTotalPrice, sStr, now-t.Timestamp, now)
+		} else if bidNegriskTotalPrice > 1.0 { // 价格和大于1是基本条件
+			s.printNegRiskBid = true
+			now := time.Now().UnixMilli()
+			s.lastTime = now
+			log.Printf("Event[%s] >1= Prices: %s=%.2f, Sizes: %s, Delay: %d, Now: %d", s.event.ID, bidPstr, bidNegriskTotalPrice, bidSstr, now-t.Timestamp, now)
 		}
+
 	}
 
 	return nil
@@ -129,6 +173,7 @@ func (s *PolyeventStrategy) OnTick(t model.Tick) []model.Intent {
 func (s *PolyeventStrategy) Init(ctx context.Context, ctrl marketdata.MarketDataController) error {
 	s.mdCtrl = ctrl
 	s.print = make(map[string]bool)
+	s.printBid = make(map[string]bool)
 	return nil
 }
 
@@ -143,7 +188,10 @@ func (s *PolyeventStrategy) Run(ctx context.Context) error {
 		event, err := pmClient.FetchEventBySlug(eventSlug)
 		if err != nil {
 			log.Println("FetchEventBySlug failed:", err)
-			utils.SleepWithCtx(ctx, 5*time.Second)
+			run := utils.SleepWithCtx(ctx, 5*time.Second)
+			if !run {
+				return err
+			}
 			continue
 		}
 
@@ -151,7 +199,10 @@ func (s *PolyeventStrategy) Run(ctx context.Context) error {
 		endDate, err := utils.ToTimestamp(endDateStr)
 		if err != nil {
 			log.Println("ToTimestamp failed:", err)
-			utils.SleepWithCtx(ctx, 5*time.Second)
+			run := utils.SleepWithCtx(ctx, 5*time.Second)
+			if !run {
+				return err
+			}
 			continue
 		}
 
@@ -192,7 +243,7 @@ func (s *PolyeventStrategy) Run(ctx context.Context) error {
 			}
 		}
 		s.Tokens = eventTokens
-
+		log.Printf("[PolyeventStrategy] Subscribe Tokens: %d", len(eventTokens))
 		s.mdCtrl.SubscribeTokens(eventTokens...)
 
 		if s.event.NegRisk {

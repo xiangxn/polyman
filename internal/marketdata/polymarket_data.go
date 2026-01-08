@@ -85,18 +85,36 @@ func (pm *PolymarketData) handleMessage(msg string) {
 	}()
 
 	eventType := gjson.Get(msg, "event_type").String()
-	if eventType != "book" {
+	switch eventType {
+	case "book":
+		pm.handleBook(msg)
+	case "last_trade_price":
+		pm.handleLastTradePrice(msg)
+	case "tick_size_change":
+		pm.handleTickSizeChange(msg)
+	default:
 		return
 	}
+}
 
+func (pm *PolymarketData) handleTickSizeChange(msg string) {
+	// TODO:
+}
+
+func (pm *PolymarketData) handleLastTradePrice(msg string) {
+	// TODO:
+}
+
+func (pm *PolymarketData) handleBook(msg string) {
 	market := gjson.Get(msg, "market").String()
 	Bids := gjson.Get(msg, "bids").Array()
 	Asks := gjson.Get(msg, "asks").Array()
 	assetID := gjson.Get(msg, "asset_id").String()
 	timestamp := gjson.Get(msg, "timestamp").Int()
-	minOrderSize := gjson.Get(msg, "min_order_size").Float()
-	tickSize := gjson.Get(msg, "tick_size").Float()
-	negRisk := gjson.Get(msg, "neg_risk").Bool()
+
+	// minOrderSize := gjson.Get(msg, "min_order_size").Float()
+	// tickSize := gjson.Get(msg, "tick_size").Float()
+	// negRisk := gjson.Get(msg, "neg_risk").Bool()
 
 	if len(Bids) == 0 && len(Asks) == 0 {
 		return
@@ -122,9 +140,9 @@ func (pm *PolymarketData) handleMessage(msg string) {
 		Market:    market,
 		Timestamp: timestamp,
 
-		MinOrderSize: minOrderSize,
-		TickSize:     tickSize,
-		NegRisk:      negRisk,
+		// MinOrderSize: minOrderSize,
+		// TickSize:     tickSize,
+		// NegRisk:      negRisk,
 	})
 
 	tick := model.Tick{
@@ -134,9 +152,9 @@ func (pm *PolymarketData) handleMessage(msg string) {
 		Volume:    bestBid.Size,  // 可选填
 		Timestamp: timestamp,
 
-		MinOrderSize: minOrderSize,
-		TickSize:     tickSize,
-		NegRisk:      negRisk,
+		// MinOrderSize: minOrderSize,
+		// TickSize:     tickSize,
+		// NegRisk:      negRisk,
 	}
 
 	// 异步发送到 channel
@@ -196,7 +214,9 @@ func (pm *PolymarketData) UnsubscribeTokens(tokens ...string) {
 }
 
 func (pm *PolymarketData) subscribeToMarket(tokens ...string) {
-	pm.fetchOrderbooks(tokens...)
+	if len(tokens) > 0 {
+		pm.fetchOrderbooks(tokens...)
+	}
 
 	pm.muSubsTokens.Lock()
 	defer pm.muSubsTokens.Unlock()

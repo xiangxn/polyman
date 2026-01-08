@@ -2,105 +2,62 @@ package engine
 
 import (
 	"context"
-	"fmt"
-	"log"
 
-	"github.com/xiangxn/polyman/internal/executor"
-	"github.com/xiangxn/polyman/internal/marketdata"
-	"github.com/xiangxn/polyman/internal/model"
-	"github.com/xiangxn/polyman/internal/position"
-	"github.com/xiangxn/polyman/internal/strategies"
+	"golang.org/x/sync/errgroup"
 )
 
-type Engine struct {
-	md       marketdata.MarketData
-	strategy strategies.Strategy
-	executor executor.Executor
-	pos      *position.PositionManager
-
-	intentCh chan model.Intent
+type Engine[C Controller] struct {
+	bus         *EventBus
+	feeds       []Feed
+	strategies  []Strategy[C]
+	executor    Executor
+	controllers map[string]C
 }
 
-func New(
-	md marketdata.MarketData,
-	strategy strategies.Strategy,
-	orderer executor.Executor,
-	pos *position.PositionManager,
-) *Engine {
-	return &Engine{md, strategy, orderer, pos, make(chan model.Intent, 1024)}
+func NewEngine[C Controller](
+	feeds []Feed,
+	strategies []Strategy[C],
+	executor Executor,
+) *Engine[C] {
+	bus := NewEventBus()
+	for _, feed := range feeds {
+		feed.SetEventBus(bus)
+	}
+	return &Engine[C]{
+		bus:        bus,
+		feeds:      feeds,
+		strategies: strategies,
+		executor:   executor,
+	}
 }
 
-func (e *Engine) Run(ctx context.Context) error {
-	log.Println("[Engine] Run starting")
-	defer log.Println("[Engine] Run exit")
+func (e *Engine[C]) Run(parent context.Context) error {
+	g, engineCtx := errgroup.WithContext(parent)
 
-	// 0️⃣ 连接 Executor → PositionManager（一次性）
-	if src, ok := e.executor.(executor.EventSource); ok {
-		src.SetListener(e.pos)
-	}
+	// Executor：关键域
+	g.Go(func() error {
+		return e.executor.Run(engineCtx)
+	})
 
-	// 1️⃣ 初始化策略
-	if initer, ok := e.strategy.(strategies.InitnableStrategy); ok {
-		ctrl, ok := e.md.(marketdata.MarketDataController)
-		if !ok {
-			if err := initer.Init(ctx, nil); err != nil {
-				return err
-			}
-		} else {
-			if err := initer.Init(ctx, ctrl); err != nil {
-				return err
-			}
+	// Feed：非关键域（可以自己重连）
+	for _, f := range e.feeds {
+		feed := f
+		if c, ok := feed.(C); ok {
+			e.controllers[c.Name()] = c
 		}
+		g.Go(func() error {
+			return feed.Run(engineCtx)
+		})
 	}
 
-	// 2️⃣ 如果策略实现了 Run，启动其生命周期 goroutine
-	if runner, ok := e.strategy.(strategies.RunnableStrategy); ok {
-		go func() {
-			if err := runner.Run(ctx); err != nil && err != context.Canceled {
-				// 这里非常关键：
-				// 策略 Run 出错，应该让整个系统停下来
-				panic(fmt.Errorf("strategy run failed: %w", err))
-			}
-		}()
+	// Strategy：半关键域
+	for _, s := range e.strategies {
+		strat := s
+		strat.SetEventBus(e.bus)
+		g.Go(func() error {
+			return strat.Run(engineCtx, e.executor.(ExecutorController), e.controllers)
+		})
 	}
 
-	// 3️⃣ 行情 → 策略 → 下单 主循环
-	ticks := e.md.Subscribe()
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-
-		case tick, ok := <-ticks:
-			if !ok {
-				return fmt.Errorf("market data closed")
-			}
-
-			intents := e.strategy.OnTick(tick)
-			if len(intents) == 0 {
-				continue
-			}
-
-			canOpen := true
-			for _, in := range intents {
-				if !e.pos.CanOpen(in) {
-					canOpen = false
-					break
-				}
-			}
-			if canOpen {
-				if err := e.executor.Submit(ctx, intents); err != nil {
-					continue
-				}
-				for _, in := range intents {
-					// ✅ 下单成功，冻结仓位
-					if err := e.pos.Freeze(in); err != nil {
-						// 理论上不应该失败
-						// 但失败时要记录，否则风控失效
-						log.Printf("[Engine] freeze position failed: %v", err)
-					}
-				}
-			}
-		}
-	}
+	return g.Wait()
 }

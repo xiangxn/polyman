@@ -5,9 +5,10 @@ go 1.25.5
 require (
 	github.com/ethereum/go-ethereum v1.16.1
 	github.com/polymarket/go-order-utils v1.22.6
+	github.com/shopspring/decimal v1.4.0
 	github.com/spf13/viper v1.21.0
 	github.com/tidwall/gjson v1.18.0
-	github.com/xiangxn/go-polymarket-sdk v0.1.34
+	github.com/xiangxn/go-polymarket-sdk v0.1.36
 	golang.org/x/net v0.45.0
 	golang.org/x/term v0.38.0
 	resty.dev/v3 v3.0.0-beta.5

@@ -7,9 +7,9 @@ import (
 	"github.com/xiangxn/polyman/internal/model"
 )
 
-// 核心 Tick 处理
 type Strategy interface {
-	OnTick(t model.Tick) []model.Intent
+	ID() string
+	OnEvent(ctx context.Context, ev model.MarketEvent) ([]model.Intent, error)
 }
 
 // 初始化方法，可以加载配置、缓存、订阅事件等

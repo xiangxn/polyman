@@ -4,17 +4,34 @@ import (
 	"context"
 	"time"
 
-	"github.com/xiangxn/polyman/internal/model"
+	"github.com/xiangxn/polyman/internal/engine"
 )
 
 type MockMarketData struct {
-	ch chan model.Tick
+	bus *engine.EventBus
+}
+
+type MockEvent struct {
+	Market string
+	Token  string
+	Price  float64
+	Ts     int64
+}
+
+func (m MockEvent) Type() engine.EventType {
+	return engine.EventPriceUpdate
+}
+
+func (m MockEvent) Time() int64 {
+	return m.Ts
 }
 
 func NewMockMarketData() *MockMarketData {
-	return &MockMarketData{
-		ch: make(chan model.Tick, 100),
-	}
+	return &MockMarketData{}
+}
+
+func (m *MockMarketData) SetEventBus(bus *engine.EventBus) {
+	m.bus = bus
 }
 
 func (m *MockMarketData) Run(ctx context.Context) error {
@@ -24,19 +41,14 @@ func (m *MockMarketData) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ticker.C:
-			m.ch <- model.Tick{
-				Market:    "BTC",
-				Token:     "0",
-				Price:     100,
-				Timestamp: time.Now().UnixMilli(),
-			}
+			m.bus.Publish(MockEvent{
+				Market: "BTC",
+				Token:  "0",
+				Price:  100,
+				Ts:     time.Now().UnixMilli(),
+			})
 		case <-ctx.Done():
-			close(m.ch)
 			return ctx.Err()
 		}
 	}
-}
-
-func (m *MockMarketData) Subscribe() <-chan model.Tick {
-	return m.ch
 }
