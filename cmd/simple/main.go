@@ -7,10 +7,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/xiangxn/polyman/internal/engine"
-	"github.com/xiangxn/polyman/internal/executor"
-	"github.com/xiangxn/polyman/internal/marketdata"
-	"github.com/xiangxn/polyman/internal/strategies"
+	"github.com/xiangxn/polyman/pkg/engine"
+	"github.com/xiangxn/polyman/pkg/executor"
+	"github.com/xiangxn/polyman/pkg/marketdata"
+	"github.com/xiangxn/polyman/pkg/strategies"
 )
 
 func main() {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/xiangxn/polyman/internal/model"
+	"github.com/xiangxn/polyman/pkg/model"
 )
 
 type SimpleExecutor struct {

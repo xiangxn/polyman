@@ -4,11 +4,10 @@ import (
 	"context"
 	"log"
 
-	"github.com/xiangxn/polyman/internal/engine"
-	"github.com/xiangxn/polyman/internal/marketdata"
-	"github.com/xiangxn/polyman/internal/model"
-
 	"github.com/xiangxn/go-polymarket-sdk/orders"
+	"github.com/xiangxn/polyman/pkg/engine"
+	"github.com/xiangxn/polyman/pkg/marketdata"
+	"github.com/xiangxn/polyman/pkg/model"
 )
 
 type SimpleStrategy struct {

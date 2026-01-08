@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/xiangxn/polyman/internal/engine"
+	"github.com/xiangxn/polyman/pkg/engine"
 )
 
 type MockMarketData struct {
