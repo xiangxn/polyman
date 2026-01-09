@@ -4,7 +4,7 @@ go 1.25.5
 
 require (
 	github.com/ethereum/go-ethereum v1.16.1
-	github.com/xiangxn/go-polymarket-sdk v0.1.36
+	github.com/xiangxn/go-polymarket-sdk v0.1.37
 	golang.org/x/net v0.45.0
 	golang.org/x/sync v0.17.0
 	resty.dev/v3 v3.0.0-beta.5
