@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 
+	"github.com/polymarket/go-order-utils/pkg/model"
 	"github.com/xiangxn/go-polymarket-sdk/orders"
 	"github.com/xiangxn/polyman/pkg/engine"
 	"github.com/xiangxn/polyman/pkg/marketdata"
@@ -24,7 +25,7 @@ func (s *SimpleStrategy) OnTick(e marketdata.MockEvent) []engine.Intent {
 				StrategyID: s.Name(),
 				MarketID:   e.Market,
 				TokenID:    e.Token,
-				Side:       engine.BUY,
+				Side:       model.BUY,
 				Type:       orders.GTC,
 				Price:      e.Price,
 				Size:       1,

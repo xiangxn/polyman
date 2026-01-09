@@ -1,12 +1,15 @@
 package engine
 
-import "github.com/xiangxn/go-polymarket-sdk/orders"
+import (
+	"github.com/polymarket/go-order-utils/pkg/model"
+	"github.com/xiangxn/go-polymarket-sdk/orders"
+)
 
 type Intent struct {
 	StrategyID string
 	MarketID   string
 	TokenID    string
-	Side       Side
+	Side       model.Side
 	Price      float64
 	Size       float64
 	Type       orders.OrderType
@@ -14,10 +17,3 @@ type Intent struct {
 	ReduceOnly bool
 	TTL        int64
 }
-
-type Side uint8
-
-const (
-	BUY Side = iota
-	SELL
-)
