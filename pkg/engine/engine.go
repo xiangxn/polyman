@@ -24,10 +24,11 @@ func NewEngine[C Controller](
 		feed.SetEventBus(bus)
 	}
 	return &Engine[C]{
-		bus:        bus,
-		feeds:      feeds,
-		strategies: strategies,
-		executor:   executor,
+		bus:         bus,
+		feeds:       feeds,
+		strategies:  strategies,
+		executor:    executor,
+		controllers: make(map[string]C),
 	}
 }
 
