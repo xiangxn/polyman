@@ -4,7 +4,8 @@ go 1.25.5
 
 require (
 	github.com/ethereum/go-ethereum v1.16.1
-	github.com/xiangxn/go-polymarket-sdk v0.1.37
+	github.com/polymarket/go-order-utils v1.22.6
+	github.com/xiangxn/go-polymarket-sdk v0.1.47
 	golang.org/x/net v0.45.0
 	golang.org/x/sync v0.17.0
 	resty.dev/v3 v3.0.0-beta.5
@@ -24,8 +25,8 @@ require (
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/holiman/uint256 v1.3.2 // indirect
-	github.com/polymarket/go-order-utils v1.22.6 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
+	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/supranational/blst v0.3.16-0.20250831170142-f48500c1fdbe // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect

@@ -7,10 +7,10 @@ import (
 	"github.com/xiangxn/go-polymarket-sdk/utils"
 )
 
-func FormatSlug(template string) string {
+func FormatSlug(template string, m int) string {
 	out := os.Expand(template, func(key string) string {
 		if key == "time" {
-			return fmt.Sprint(utils.RoundTo15Minutes())
+			return fmt.Sprint(utils.RoundToMinutes(m))
 		}
 		return ""
 	})
