@@ -6,6 +6,7 @@ const (
 	EventMarketSnapshot EventType = iota
 	EventOrderbookUpdate
 	EventTrade
+	EventTradeFailed
 	EventMarketResolved
 
 	EventPriceUpdate
